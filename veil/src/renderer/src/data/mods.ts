@@ -13,7 +13,7 @@ export type Shot = { src: string; caption: string; video?: boolean }
 export type Mod = {
   id: string
   name: string
-  group: 'engine' | 'effects' | 'visibility' | 'hud' | 'tweaks'
+  group: 'engine' | 'effects' | 'visibility' | 'hud' | 'potato' | 'tweaks'
   source: 'complock' | 'veil'
   author?: string
   blurb: string
@@ -36,6 +36,8 @@ export type Mod = {
   options?: Option[]
   convars?: Record<string, string>
   autoexec?: Record<string, string>
+  /** how to reach it inside Deadlock, if it has anything to open there */
+  ingame?: string
 }
 
 export const GROUPS: Record<Mod['group'], { name: string; line: string }> = {
@@ -43,18 +45,21 @@ export const GROUPS: Record<Mod['group'], { name: string; line: string }> = {
   engine: { name: 'Engine', line: 'Less work per frame. Nothing looks or sounds different.' },
   effects: { name: 'Effects and map', line: 'Less to draw. These change how the game looks.' },
   visibility: { name: 'Visibility', line: 'Easier to read in a fight.' },
+  potato: { name: 'Potato', line: 'Looks worse, plays the same.' },
   tweaks: { name: 'VEIL tweaks', line: 'Single settings VEIL writes for you. Not benchmarked yet.' },
 }
 
 export const MODS: Mod[] = [
   {
     id: 'veilhud', name: 'VEIL HUD', group: 'hud', source: 'veil', excludes: ['hpbars'],
+    ingame: 'Nothing to open in the game: you design it in the Forge, and Apply rebuilds the pak. The change shows the next time Deadlock starts.',
     blurb: 'Your Forge health bars, ult indicator and stamina, built into a real game pak.',
     detail: 'VEIL takes the game’s own health bar stylesheet from your install, adds the design from the Forge, and installs it as a pak in addons. Heroes only; troopers, bosses and buildings stay stock. Rebuilt every time you apply.',
     impact: 'small',
   },
   {
     id: 'hudpp', name: 'HUD++', group: 'hud', source: 'complock', author: 'jcStani', pak: true, size: '800 KB', match: 'HUD++',
+    ingame: 'Press Esc in a match and click COMPLOCK, the button above Settings. That opens HUD++’s own panel: crosshair, minimap, top bar and item cooldowns.',
     cl: { vanilla: 'hud_vanilla.vpk', cumulative: 'hud.vpk', hidden: 'hud_nodamage.vpk' },
     blurb: 'A cleaner HUD that costs less to draw.',
     detail: 'Cooldowns in seconds, team souls with the gap between teams, boss and powerup timers, and a choice of how damage numbers show.',
@@ -139,6 +144,21 @@ export const MODS: Mod[] = [
     after: CL + 'hp-bars.webp',
   },
 
+  // Potato: below the lowest video preset. Values from CompLock's cvar index (build 6861); none are in their gameinfo.gi.
+  { id: 'skybox', name: 'No 3D skybox', group: 'potato', source: 'veil', impact: 'small', blurb: 'The distant skyline around the map is not drawn.', detail: 'r_draw3dskybox false. Buildings beyond the play area disappear into a flat sky. Nothing you can fight in is affected.', convars: { r_draw3dskybox: 'false' } },
+  { id: 'particlelights', name: 'Effects don’t light the world', group: 'potato', source: 'veil', impact: 'medium', blurb: 'Abilities and explosions stop casting light on walls and heroes.', detail: 'r_citadel_disable_particle_lights true. Every glowing effect was also a moving light; now only effects that need one keep it. Fights look flatter and run lighter.', convars: { r_citadel_disable_particle_lights: 'true' } },
+  { id: 'debris', name: 'No effect debris', group: 'potato', source: 'veil', impact: 'small', blurb: 'Effects stop spawning physics chunks.', detail: 'r_physics_particle_op_spawn_scale 0. Rocks and shards that effects throw around are not created, so there is nothing to simulate.', convars: { r_physics_particle_op_spawn_scale: '0' } },
+  { id: 'impacts', name: 'No bullet impacts', group: 'potato', source: 'veil', impact: 'small', blurb: 'No puffs and sparks where bullets hit walls.', detail: 'cl_impacteffects false. Hits on heroes still show; only the effects on the world go. You see a little less of where a missed shot landed.', convars: { cl_impacteffects: 'false' } },
+  { id: 'blood', name: 'No blood or gibs', group: 'potato', source: 'veil', impact: 'small', blurb: 'The game’s low violence mode.', detail: 'violence_hblood, violence_hgibs, violence_ablood and violence_agibs off. Fewer particles and decals in every fight.', autoexec: { violence_hblood: '0', violence_hgibs: '0', violence_ablood: '0', violence_agibs: '0' } },
+  { id: 'faces', name: 'Frozen faces', group: 'potato', source: 'veil', impact: 'small', blurb: 'Heroes keep a neutral face: no expressions, no lip sync.', detail: 'enable_boneflex 0. Flex animation is worked out for every hero on screen each frame; without it faces stop moving.', autoexec: { enable_boneflex: '0' } },
+  { id: 'ownlod', name: 'Your hero at normal detail', group: 'potato', source: 'veil', impact: 'small', blurb: 'Your own hero uses the same level of detail as everyone else.', detail: 'citadel_player_model_force_highest_lod false. By default your hero is always drawn at its highest detail, though it fills only a small part of the screen.', convars: { citadel_player_model_force_highest_lod: 'false' } },
+  { id: 'bodies', name: 'Bodies vanish fast', group: 'potato', source: 'veil', impact: 'small', blurb: 'Dead heroes disappear after 1 second instead of 5.', detail: 'citadel_death_ragdoll_duration 1. Fewer bodies to animate after a team fight.', convars: { citadel_death_ragdoll_duration: '1' } },
+  { id: 'particlerate', name: 'Particles at 60 Hz', group: 'potato', source: 'veil', impact: 'medium', blurb: 'Effects are simulated at most 60 times a second.', detail: 'r_particle_min_timestep 0.0167. Above 60 FPS particles are interpolated between steps instead of simulated every frame. A processor saving that grows with your frame rate.', convars: { r_particle_min_timestep: '0.0167' } },
+  { id: 'fallback', name: 'Cheaper effects sooner', group: 'potato', source: 'veil', impact: 'medium', blurb: 'In heavy fights, new effects switch to their cheap versions earlier.', detail: 'cl_particle_sim_fallback_threshold_ms 2 (default 6) and cl_particle_sim_fallback_base_multiplier 10. Once particles take 2 ms of a frame, effects that have a cheaper version use it.', convars: { cl_particle_sim_fallback_threshold_ms: '2', cl_particle_sim_fallback_base_multiplier: '10' } },
+  { id: 'distancefield', name: 'No distance field shadows', group: 'potato', source: 'veil', impact: 'medium', blurb: 'The soft, traced shadows of the map are skipped.', detail: 'r_distancefield_enable false and r_citadel_distancefield_shadows false. The map loses its soft large-scale shadowing; hero shadows follow your shadow setting.', convars: { r_distancefield_enable: 'false', r_citadel_distancefield_shadows: 'false' } },
+  { id: 'lightshadows', name: 'Lights cast no shadows', group: 'potato', source: 'veil', impact: 'medium', blurb: 'Lamps and dynamic lights stop casting shadows.', detail: 'lb_enable_shadow_casting false. Only the sun can cast shadows, and only with shadow quality above off.', convars: { lb_enable_shadow_casting: 'false' } },
+  { id: 'hdr', name: 'HDR off', group: 'potato', source: 'veil', impact: 'small', blurb: 'A flatter image with clipped highlights.', detail: 'sc_hdr_enabled_override 0. Renders in a cheaper colour format. Bright effects lose their glow and look washed out.', convars: { sc_hdr_enabled_override: '0' } },
+
   // VEIL tweaks
   { id: 'fps', name: 'Uncapped frame rate', group: 'tweaks', source: 'veil', impact: 'large', blurb: 'Removes the 400 FPS cap in game, caps menus at 60.', detail: 'fps_max 0 lifts the in-game cap; fps_max_ui 60 stops the menu from heating your PC for nothing.', autoexec: { fps_max: '0', fps_max_ui: '60' } },
   { id: 'reflex', name: 'Low latency mode', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'NVIDIA Reflex or AMD Anti-Lag 2.', detail: 'Lower input delay. Boost (2) keeps NVIDIA clocks up and only exists on NVIDIA.', convars: { r_low_latency: '1' }, options: [ { id: 'on', label: 'On', convars: { r_low_latency: '1' } }, { id: 'boost', label: 'On with boost', note: 'NVIDIA only', convars: { r_low_latency: '2' } } ] },
@@ -149,7 +169,13 @@ export const MODS: Mod[] = [
   { id: 'particledetail', name: 'Particle detail cap', group: 'tweaks', source: 'veil', impact: 'medium', blurb: 'Skips the most detailed parts of effects.', detail: 'r_particle_max_detail_level 1. Stacks with Particle Pruning.', convars: { r_particle_max_detail_level: '1' } },
   { id: 'bloom', name: 'Effects out of bloom', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'Effects stop drawing into the glow buffer.', detail: 'r_effects_bloom false. Abilities glow less in busy fights.', convars: { r_effects_bloom: 'false' } },
   { id: 'ragdolls', name: 'Fewer ragdolls', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'At most 4 bodies on screen.', detail: 'cl_ragdoll_limit 4. The lighter choice if you keep client physics on.', autoexec: { cl_ragdoll_limit: '4' } },
-  { id: 'textures', name: 'Lower texture detail', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'One mip level down: half the texture resolution.', detail: 'r_texture_stream_mip_bias 1. Helps on cards with little video memory.', convars: { r_texture_stream_mip_bias: '1' } },
+  { id: 'textures', name: 'Lower texture detail', group: 'tweaks', source: 'veil', impact: 'medium', blurb: 'Textures streamed at a fraction of their resolution.', detail: 'r_texture_stream_mip_bias, also written to video.txt, where the game reads it. Each step halves texture resolution. Mostly helps cards with little video memory.',
+    options: [
+      // the lowest first: it is the default, so switching this on never raises a value already set lower
+      { id: '4', label: 'Potato', note: '1/16 of the resolution. Blurry walls; heroes stay clear by shape and colour.', convars: { r_texture_stream_mip_bias: '4' } },
+      { id: '2', label: 'Low', note: 'A quarter, like the game’s Low.', convars: { r_texture_stream_mip_bias: '2' } },
+      { id: '1', label: 'Medium', note: 'Half resolution, like the game’s Medium.', convars: { r_texture_stream_mip_bias: '1' } },
+    ] },
   { id: 'renderscale', name: 'Render scale', group: 'tweaks', source: 'veil', impact: 'large', blurb: 'Draw fewer pixels, upscale to your screen.', detail: 'mat_viewportscale. The biggest lever when your graphics card is the limit.', options: [ { id: '100', label: '100%', convars: { mat_viewportscale: '1' } }, { id: '85', label: '85%', convars: { mat_viewportscale: '0.85' } }, { id: '70', label: '70%', convars: { mat_viewportscale: '0.7' } }, { id: '50', label: '50%', convars: { mat_viewportscale: '0.5' } } ] },
 ]
 

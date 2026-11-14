@@ -127,12 +127,15 @@ ipcMain.handle('game:pick', async () => {
 ipcMain.handle('game:apply', async (_e, convars: Record<string, string>, autoexec: Record<string, string>) => {
   const g = need()
   await dl.applyGameinfo(g, convars)
+  // video-menu cvars also go into cfg/video.txt, which the game loads after gameinfo.gi
+  await dl.writeVideo(g, convars)
   if (Object.keys(autoexec).length) await dl.writeAutoexec(g, autoexec)
   return dl.status(g)
 })
 ipcMain.handle('game:restore', async () => {
   const g = need()
   await dl.restore(g)
+  await dl.restoreVideo(g)
   return dl.status(g)
 })
 ipcMain.handle('pak:install', async (_e, target?: string) => {

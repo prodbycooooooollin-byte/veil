@@ -3,6 +3,7 @@
 // own drawn set below (NavIcon).
 import type { CSSProperties } from 'react'
 import * as P from '@phosphor-icons/react'
+import deadlockMark from '../assets/deadlock-mark.png'
 
 export type IconWeight = 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone'
 export const WEIGHT: IconWeight = 'duotone'
@@ -57,24 +58,24 @@ export const Gear = wrap(P.GearSix)
 export const Keyboard = wrap(P.Keyboard)
 export const Info = wrap(P.Info)
 
-/* ---------- VEIL navigation set: 24px grid, 1.6 stroke, a brass accent shape in each ---------- */
+/* ---------- navigation: plain, recognisable symbols; the game tab uses Deadlock's own mark ---------- */
 export type NavName = 'home' | 'mods' | 'console' | 'forge' | 'crosshair' | 'sound' | 'game' | 'settings'
 
+const NAV_ICONS: Record<Exclude<NavName, 'game'>, P.Icon> = {
+  home: P.House,
+  mods: P.SlidersHorizontal,
+  console: P.TerminalWindow,
+  forge: P.Heartbeat,
+  crosshair: P.Crosshair,
+  sound: P.SpeakerHigh,
+  settings: P.GearSix,
+}
+
 export function NavIcon({ name, size = 20, active }: { name: NavName; size?: number; active?: boolean }) {
-  const acc = { fill: 'var(--brass)', opacity: active ? 1 : 0.55, stroke: 'none' }
-  const body = {
-    home: <><path d="M5 20.5V10.5a7 7 0 0 1 14 0v10" /><path d="M3 20.5h18" /><path d="M12 6.8l2 2.7-2 2.7-2-2.7z" style={acc} /></>,
-    mods: <><path d="M12 3.5l8 4-8 4-8-4z" /><path d="M4 12l8 4 8-4" /><path d="M4 16.5l8 4 8-4" /><path d="M12 5.6l3.8 1.9L12 9.4 8.2 7.5z" style={acc} /></>,
-    console: <><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M7 10l3 2.5L7 15" /><rect x="12.5" y="14" width="5" height="1.8" rx=".9" style={acc} /></>,
-    forge: <><path d="M3.5 8.5h13a4 4 0 0 1-4 4h-1.5v3h3l1.5 3.5H6.5L8 15.5h3v-3H8a4.5 4.5 0 0 1-4.5-4z" /><path d="M16.5 8.5l4-1.5" /><circle cx="19.6" cy="5" r="1.4" style={acc} /></>,
-    crosshair: <><circle cx="12" cy="12" r="7.5" /><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" /><path d="M12 9.6l2.4 2.4-2.4 2.4-2.4-2.4z" style={acc} /></>,
-    sound: <><path d="M4 9.5v5M8 6.5v11M12 4v16M16 7.5v9M20 10.5v3" /><rect x="10.9" y="9" width="2.2" height="6" rx="1.1" style={acc} /></>,
-    game: <><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" /><path d="M12 12l4-2.25v4.5L12 16.5z" style={acc} /></>,
-    settings: <><path d="M12 2.8l2 1.9 2.7-.3.7 2.6 2.4 1.3-.8 2.6.8 2.6-2.4 1.3-.7 2.6-2.7-.3-2 1.9-2-1.9-2.7.3-.7-2.6-2.4-1.3.8-2.6-.8-2.6 2.4-1.3.7-2.6 2.7.3z" /><circle cx="12" cy="12" r="3" style={acc} /></>,
-  }[name]
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {body}
-    </svg>
-  )
+  if (name === 'game') {
+    // Deadlock's emblem as a mask, so it takes the button's colour like the other icons
+    return <span aria-hidden style={{ width: size + 2, height: size + 2, display: 'block', background: 'currentColor', WebkitMaskImage: `url(${deadlockMark})`, maskImage: `url(${deadlockMark})`, WebkitMaskSize: 'contain', maskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' }} />
+  }
+  const I = NAV_ICONS[name]
+  return <I size={size} weight={active ? 'bold' : 'regular'} aria-hidden />
 }

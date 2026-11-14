@@ -6,7 +6,7 @@ import { useStore, isInstalled, computePack } from '../lib/store'
 import { api } from '../lib/api'
 import { GainText, Switch, Tween, pct, Notch } from '../components/ui'
 
-const ORDER: Mod['group'][] = ['hud', 'engine', 'effects', 'visibility', 'tweaks']
+const ORDER: Mod['group'][] = ['hud', 'engine', 'effects', 'visibility', 'tweaks', 'potato']
 
 /**
  * The config: every setting VEIL can write, as switches. Left the list, middle the selected setting
@@ -123,6 +123,13 @@ function Detail({ m }: { m: Mod }) {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {m.ingame && (
+          <div className="card">
+            <h4>In game</h4>
+            <p>{m.ingame}</p>
           </div>
         )}
 

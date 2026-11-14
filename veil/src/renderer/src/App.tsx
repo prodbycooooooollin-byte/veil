@@ -112,11 +112,12 @@ function StatusPill() {
 
 /** Always in reach: what the config is worth, and the button that writes it. */
 function ApplyPill() {
-  const s = useStore()
-  const p = computePack(s)
+  // subscribes to two values only, so the top bar doesn't re-render on every slider tick elsewhere
+  const gain = useStore((s) => computePack(s).gain.avg)
+  const found = useStore((s) => !!s.status?.found)
   return (
-    <button className="cta" onClick={applyPack} disabled={!s.status?.found} title={s.status?.found ? 'Write your config into Deadlock' : 'Deadlock was not found'}>
-      <span className="cta-fig"><Tween value={p.gain.avg} format={pct} /></span>
+    <button className="cta" onClick={applyPack} disabled={!found} title={found ? 'Write your config into Deadlock' : 'Deadlock was not found'}>
+      <span className="cta-fig"><Tween value={gain} format={pct} /></span>
       <span className="cta-l">Apply config</span>
       <span className="cta-go"><ArrowUpRight size={14} /></span>
     </button>

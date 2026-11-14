@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
+import { FrameCap } from '../components/FrameCap'
 import * as THREE from 'three'
 import { Boundary, HeroModel, HERO_HEIGHT } from '../components/HeroModel'
 import { StudioEnv } from '../components/HeroStage'
@@ -16,11 +17,13 @@ export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'ult' | 'crosshair' 
 export function ForgeScene({ hero, sim, tab, barRef, dmgRef }: { hero?: Hero; sim: Sim; tab: Tab; barRef: RefObject<HTMLCanvasElement | null>; dmgRef: RefObject<HTMLDivElement | null> }) {
   const color = hero?.color ?? '#d4a855'
   return (
-    <Canvas className="three" shadows dpr={[1, 1.75]} camera={{ position: [0.6, 1.7, 5.4], fov: 32 }} gl={{ antialias: true }}>
+    <Canvas className="three" shadows frameloop="demand" dpr={[1, 1.5]} camera={{ position: [0.6, 1.7, 5.4], fov: 32 }} gl={{ antialias: true }}>
       <color attach="background" args={['#030303']} />
       <fog attach="fog" args={['#030303', 9, 22]} />
       <ambientLight intensity={0.35} />
-      <spotLight position={[0.6, 6.5, 2.2]} angle={0.42} penumbra={0.85} intensity={95} distance={14} decay={1.6} color="#f6ecd9" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
+      {/* 60 fps is plenty for a model you turn by hand; the bar sim and damage numbers run in useFrame */}
+      <FrameCap fps={60} />
+      <spotLight position={[0.6, 6.5, 2.2]} angle={0.42} penumbra={0.85} intensity={95} distance={14} decay={1.6} color="#f6ecd9" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0004} />
       <directionalLight position={[-3.2, 2.4, -2.8]} intensity={2.6} color={color} />
       <directionalLight position={[3.4, 1.4, -2.4]} intensity={1.4} color="#5fe0c4" />
       <directionalLight position={[0, 1.6, 4]} intensity={0.55} color="#f3ead9" />

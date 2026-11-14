@@ -175,6 +175,50 @@ export async function writeAutoexec(game: string, cvars: Record<string, string>)
   return file
 }
 
+/*
+ * cfg/video.txt holds the video menu's values ("setting.<cvar>"). Deadlock loads it after gameinfo.gi, so for
+ * these cvars a value in gameinfo.gi alone is overwritten at launch. The list is the cvars the game saves to
+ * video.txt (CompLock's cvar index, build 6861).
+ */
+const VIDEO_CVARS = new Set(['cpu_level', 'gpu_level', 'gpu_mem_level', 'mat_viewportscale', 'mem_level', 'r_arealights', 'r_citadel_antialiasing', 'r_citadel_dlss_settings_mode',
+  'r_citadel_fog_quality', 'r_citadel_fsr2_sharpness', 'r_citadel_fsr_rcas_sharpness', 'r_citadel_shadow_quality', 'r_citadel_ssao_quality', 'r_citadel_upscaling', 'r_depth_of_field',
+  'r_dlss_preset', 'r_effects_bloom', 'r_fullscreen_gamma', 'r_light_sensitivity_mode', 'r_low_latency', 'r_post_bloom', 'r_texture_stream_mip_bias'])
+const videoPath = (game: string) => join(citadel(game), 'cfg', 'video.txt')
+
+/** Writes the video-menu cvars among `convars` into cfg/video.txt, backing the file up once. Returns how many. */
+export async function writeVideo(game: string, convars: Record<string, string>): Promise<number> {
+  const file = videoPath(game)
+  if (!existsSync(file)) return 0 // the game writes it at first launch; until then gameinfo.gi's value is used
+  let text = await readFile(file, 'utf8')
+  const nl = text.includes('\r\n') ? '\r\n' : '\n'
+  let n = 0
+  for (const [k, v] of Object.entries(convars)) {
+    // only the menu's own cvars: other "setting.x" lines may hold values tuned lower than VEIL's
+    if (!VIDEO_CVARS.has(k)) continue
+    const re = new RegExp(`^(\\s*)"setting\\.${escape(k)}"(\\s+)"[^"]*"`, 'm')
+    if (re.test(text)) { text = text.replace(re, `$1"setting.${k}"$2"${v}"`); n++ }
+    else {
+      const end = text.lastIndexOf('}')
+      if (end < 0) continue
+      text = text.slice(0, end) + `\t"setting.${k}"\t\t"${v}"${nl}` + text.slice(end)
+      n++
+    }
+  }
+  if (n) {
+    if (!existsSync(file + BACKUP_SUFFIX)) await copyFile(file, file + BACKUP_SUFFIX)
+    await writeFile(file, text, 'utf8')
+  }
+  return n
+}
+
+export async function restoreVideo(game: string): Promise<boolean> {
+  const file = videoPath(game)
+  if (!existsSync(file + BACKUP_SUFFIX)) return false
+  await copyFile(file + BACKUP_SUFFIX, file)
+  await unlink(file + BACKUP_SUFFIX)
+  return true
+}
+
 /** Replaces gameinfo.gi with another one (e.g. CompLock's), keeping the original as the backup. */
 export async function installGameinfo(game: string, src: string): Promise<void> {
   const file = gameinfoPath(game)
@@ -244,13 +288,15 @@ export async function scan(game: string): Promise<{ paks: ScannedPak[]; leftover
   const dir = addonsDir(game)
   const paks: ScannedPak[] = []
   const leftovers: Leftover[] = []
+  // everything VEIL installed (its HUD and the CompLock files it downloaded) is listed in its manifest
+  const ours = new Set(Object.values(await readManifest(game)).flat().map((f) => f.toLowerCase()))
   if (existsSync(dir)) {
     for (const f of await readdir(dir)) {
       const full = join(dir, f)
       if (/\.vpk(\.off)?$/i.test(f)) {
         const s = await stat(full)
         const info = await inspect(full)
-        paks.push({ ...info, file: f, size: s.size, enabled: !f.endsWith('.off'), veil: / - VEIL$/.test(info.name ?? '') })
+        paks.push({ ...info, file: f, size: s.size, enabled: !f.endsWith('.off'), veil: ours.has(f.toLowerCase().replace(/\.off$/, '')) || / - VEIL$/.test(info.name ?? '') })
       } else if (f === '.veil.json') {
         // an old VEIL manifest; readManifest moves it out of addons on the next install
       } else if (/^(mods\.txt|\.sigil\.json|\.sigil_disabled|modinfo\.json|.*\.json)$/i.test(f) || f.startsWith('.sigil')) {
