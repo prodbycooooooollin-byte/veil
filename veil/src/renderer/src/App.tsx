@@ -22,7 +22,7 @@ type NavItem = { id: Page; label: string; icon: NavName }
 const NAV: NavItem[][] = [
   [{ id: 'lobby', label: 'Home', icon: 'home' }],
   [{ id: 'mods', label: 'Config', icon: 'mods' }, { id: 'console', label: 'Console', icon: 'console' }],
-  [{ id: 'forge', label: 'Forge', icon: 'forge' }, { id: 'crosshair', label: 'Crosshair', icon: 'crosshair' }, { id: 'sound', label: 'Hit sounds', icon: 'sound' }],
+  [{ id: 'forge', label: 'Forge · design your HUD', icon: 'forge' }, { id: 'crosshair', label: 'Crosshair', icon: 'crosshair' }, { id: 'sound', label: 'Hit sounds', icon: 'sound' }],
   [{ id: 'install', label: 'Game', icon: 'game' }],
 ]
 const PAGES = { lobby: Lobby, mods: Mods, forge: Forge, crosshair: Crosshair, sound: Sound, console: Console, install: Install, settings: Settings }

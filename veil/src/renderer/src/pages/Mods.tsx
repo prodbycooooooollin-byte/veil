@@ -4,6 +4,7 @@ import { ChevronsLeftRight, Lock, ArrowUpRight } from '../components/icons'
 import { MODS, GROUPS, byId, COMPLOCK_URL, type Mod } from '../data/mods'
 import { useStore, isInstalled, computePack } from '../lib/store'
 import { api } from '../lib/api'
+import { drawBar } from '../lib/hpbar'
 import { GainText, Switch, Tween, pct, Notch } from '../components/ui'
 
 const ORDER: Mod['group'][] = ['hud', 'engine', 'effects', 'visibility', 'tweaks', 'potato']
@@ -38,7 +39,7 @@ export default function Mods() {
                 {items.map((x) => (
                   <div key={x.id} role="button" tabIndex={0} className={`cfg-row ${sel === x.id ? 'sel' : ''} ${s.on[x.id] ? 'on' : ''}`} onClick={() => setSel(x.id)} onKeyDown={(e) => e.key === 'Enter' && setSel(x.id)}>
                     <span className="t">{x.name}</span>
-                    <span className="s">{x.source === 'veil' ? 'VEIL' : x.source === 'complock' ? `CompLock${x.author ? ' · ' + x.author : ''}` : 'Tweak'}{x.gain ? <> · <GainText v={x.gain.avg} /></> : null}</span>
+                    <span className="s">{x.id === 'veilhud' ? <b className="forge-hint">Customise it in the Forge</b> : x.source === 'veil' ? 'VEIL' : x.source === 'complock' ? `CompLock${x.author ? ' · ' + x.author : ''}` : 'Tweak'}{x.gain ? <> · <GainText v={x.gain.avg} /></> : null}</span>
                     {x.locked ? <Lock size={14} className="faint" aria-label="Always on" /> : <Switch checked={!!s.on[x.id]} onChange={() => s.toggle(x.id)} label={`Use ${x.name}`} />}
                   </div>
                 ))}
@@ -73,7 +74,8 @@ function Detail({ m }: { m: Mod }) {
   return (
     <>
       <section className="cfg-hero">
-        {m.before && m.after ? <Compare before={m.before} after={m.after} />
+        {m.id === 'veilhud' ? <HudPreview />
+          : m.before && m.after ? <Compare before={m.before} after={m.after} />
           : m.shots ? <Gallery shots={m.shots} />
           : m.before || m.after ? <img className="cfg-img" src={m.after ?? m.before} alt="" />
           : <div className="cfg-ph"><span>{m.name}</span></div>}
@@ -94,6 +96,12 @@ function Detail({ m }: { m: Mod }) {
                 <span className="cta-go"><ArrowUpRight size={14} /></span>
               </button>
             )}
+          {m.id === 'veilhud' && (
+            <button className={`cta ${on ? '' : 'off'}`} onClick={() => s.set({ page: 'forge' })}>
+              <span>Customise it in the Forge</span>
+              <span className="cta-go"><ArrowUpRight size={14} /></span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -145,7 +153,6 @@ function Detail({ m }: { m: Mod }) {
               ? <>By {m.author ?? 'CompLock'} · <a href="#" onClick={(e) => { e.preventDefault(); api.open(COMPLOCK_URL) }}>deadlockconfig.com</a> · <a href="#" onClick={(e) => { e.preventDefault(); api.open('https://ko-fi.com/deadlockconfig') }}>support them</a></>
               : <>VEIL · written to {m.convars || chosen?.convars ? 'gameinfo.gi' : m.id === 'veilhud' ? 'a pak in addons' : 'autoexec.cfg'}</>}
           </div>
-          {m.id === 'veilhud' && <button className="cta off" style={{ marginTop: 14 }} onClick={() => s.set({ page: 'forge' })}><span>Design it in the Forge</span><span className="cta-go"><ArrowUpRight size={14} /></span></button>}
         </div>
       </aside>
     </>
@@ -200,5 +207,30 @@ function Gallery({ shots }: { shots: { src: string; caption: string }[] }) {
         <figure key={s.src}><img src={s.src} alt={s.caption} loading="lazy" /><figcaption>{s.caption}</figcaption></figure>
       ))}
     </div>
+  )
+}
+
+/** VEIL HUD's hero image: your own bar from the Forge, enemy and ally, drawn big. Click opens the Forge. */
+function HudPreview() {
+  const bar = useStore((s) => s.bar)
+  const set = useStore((s) => s.set)
+  const enemy = useRef<HTMLCanvasElement>(null)
+  const ally = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const W = 300, H = 92, dpr = 2
+    for (const [ref, side, hp] of [[enemy, 'enemy', 1480], [ally, 'ally', 2010]] as const) {
+      const c = ref.current
+      if (!c) continue
+      c.width = W * dpr; c.height = H * dpr
+      drawBar(c.getContext('2d')!, W, H, dpr, { ...bar, width: Math.min(220, bar.width * 1.6) }, side, { hp, max: 2340, lag: hp + 260, stamina: 2, debuffs: 1, ult: 1 })
+    }
+  }, [bar])
+  return (
+    <button className="hud-preview" onClick={() => set({ page: 'forge' })} aria-label="Open the Forge">
+      <span className="k">Your design, from the Forge</span>
+      <canvas ref={enemy} style={{ width: 300, height: 92 }} />
+      <canvas ref={ally} style={{ width: 300, height: 92 }} />
+      <span className="hp-go">Click to change it</span>
+    </button>
   )
 }

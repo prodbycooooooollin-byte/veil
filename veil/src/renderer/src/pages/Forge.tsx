@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { RotateCcw, Copy } from '../components/icons'
+import { RotateCcw, Copy, Lock, ArrowUpRight } from '../components/icons'
 import { ForgeScene, DamageNumbers, BAR_W, BAR_H, type Tab } from '../forge/Scene'
 import { Sim } from '../forge/sim'
 import { STYLES, drawBar } from '../lib/hpbar'
@@ -24,9 +24,12 @@ export default function Forge() {
   const { heroes, failed } = useHeroes()
   const s = useStore()
   const hero = heroes.find((h) => h.id === s.hero) ?? heroes.find((h) => h.name === 'Haze') ?? heroes[0]
+  // the Forge designs VEIL HUD; with it off (HUD++ or another bar mod on) nothing here reaches the game
+  const live = !!s.on.veilhud
+  const rival = s.on.hudpp ? 'HUD++' : s.on.hpbars ? 'jcStani’s HP Bars' : null
 
   return (
-    <div className="forge">
+    <div className={`forge ${live ? '' : 'locked'}`}>
       <ForgeScene hero={hero} sim={sim} tab={tab} barRef={barRef} dmgRef={dmgRef} />
       <div className="overhead" ref={dmgRef} aria-hidden><DamageNumbers sim={sim} /></div>
       <canvas
@@ -36,9 +39,22 @@ export default function Forge() {
 
 
       <div className="forge-title">
+        <span className={`forge-state ${live ? 'on' : ''}`}><i />{live ? 'Designing VEIL HUD · in your config' : 'VEIL HUD is off'}</span>
         <h1>Forge</h1>
-        <p>Shape what you see in a fight. Click the bar over {hero?.name ?? 'the hero'} to edit it; drag to look around.</p>
+        <p>Everything you set here is built into your VEIL HUD and goes into the game when you apply. Click the bar over {hero?.name ?? 'the hero'} to edit it; drag to look around.</p>
       </div>
+
+      {!live && (
+        <div className="forge-lock" role="dialog" aria-label="VEIL HUD is off">
+          <span className="round"><Lock size={16} /></span>
+          <h2 className="h-wide">{rival ? `${rival} is on` : 'VEIL HUD is off'}</h2>
+          <p>The Forge designs VEIL HUD. {rival ? `${rival} replaces the same health bars, so nothing you set here would reach the game.` : 'Switch it on and everything you set here goes into the game when you apply.'}</p>
+          <button className="cta" onClick={() => s.toggle('veilhud')}>
+            <span>{rival ? `Use VEIL HUD instead of ${rival}` : 'Switch VEIL HUD on'}</span>
+            <span className="cta-go"><ArrowUpRight size={14} /></span>
+          </button>
+        </div>
+      )}
 
       <div className="forge-top">
         <Seg label="Whose bar" value={s.side} onChange={(side) => s.set({ side })} options={[{ id: 'enemy', label: 'Enemy' }, { id: 'ally', label: 'Ally' }]} />

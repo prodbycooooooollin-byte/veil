@@ -50,7 +50,13 @@ export default function Lobby() {
           <span className="k">Deadlock, tuned</span>
           <h1 className="h-wide">The perfect<br />config.</h1>
           <p>Switch settings on and off, apply once. VEIL writes them into the game and downloads CompLock’s files for you.</p>
-          <button className="round h5-go" onClick={() => go('mods')} aria-label="Open the config"><ArrowUpRight size={16} /></button>
+          <div className="h5-ctas">
+            <button className="round" onClick={() => go('mods')} aria-label="Open the config"><ArrowUpRight size={16} /></button>
+            <button className="cta off" onClick={() => go('forge')}>
+              <span>{s.on.veilhud ? 'Design your HUD in the Forge' : 'Your own HUD: try the Forge'}</span>
+              <span className="cta-go"><ArrowUpRight size={14} /></span>
+            </button>
+          </div>
         </motion.div>
 
         <div className="cut">

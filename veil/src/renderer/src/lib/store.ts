@@ -68,6 +68,14 @@ const defaultsOpt: Record<string, string> = { hudpp: 'hidden', gameinfo: 'fov-co
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
+/** Turns a mod on and every mod it excludes off (e.g. VEIL HUD and HUD++ replace the same HUD files). */
+function switchOn(prev: Record<string, boolean>, id: string): { on: Record<string, boolean>; off: string[] } {
+  const on = { ...prev, [id]: true }
+  const off = (byId[id]?.excludes ?? []).filter((x) => on[x])
+  for (const x of off) on[x] = false
+  return { on, off }
+}
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -93,15 +101,12 @@ export const useStore = create<State>()(
       toggle: (id) => {
         const m = byId[id]
         if (!m || m.locked) return
-        const next = !get().on[id]
-        const on = { ...get().on, [id]: next }
-        // switching one on switches off the mods that replace the same file
-        const off = next ? (m.excludes ?? []).filter((x) => on[x]) : []
-        for (const x of off) on[x] = false
+        if (get().on[id]) { set({ on: { ...get().on, [id]: false } }); return }
+        const { on, off } = switchOn(get().on, id)
         set({ on })
-        if (off.length) get().say(`${m.name} and ${off.map((x) => byId[x].name).join(', ')} change the same file, so ${off.map((x) => byId[x].name).join(', ')} is now off.`)
+        if (off.length) get().say(`${m.name} and ${off.map((x) => byId[x].name).join(', ')} replace the same part of the HUD, so ${off.map((x) => byId[x].name).join(', ')} is now off.`)
       },
-      pick: (id, o) => set({ opt: { ...get().opt, [id]: o }, on: { ...get().on, [id]: true } }),
+      pick: (id, o) => set({ opt: { ...get().opt, [id]: o }, on: switchOn(get().on, id).on }),
       setBar: (p) => set({ bar: { ...DEFAULT_BAR, ...get().bar, ...p } }),
       setCross: (p) => set({ cross: { ...get().cross, ...p } }),
       setXh: (p) => set({ xh: { ...get().xh, ...p } }),
@@ -122,6 +127,12 @@ export const useStore = create<State>()(
       partialize: ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }) => ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }),
       onRehydrateStorage: () => (st) => { if (st && st.prefs?.startPage !== 'last') st.page = 'lobby' },
       version: 4,
+      // a saved config from before VEIL HUD and HUD++ excluded each other may have both on: keep VEIL HUD
+      merge: (saved: any, current) => {
+        const on = { ...current.on, ...(saved?.on ?? {}) }
+        if (on.veilhud && on.hudpp) on.hudpp = false
+        return { ...current, ...saved, on }
+      },
       migrate: (old: any) => ({ ...old, on: { ...(old?.on ?? {}), veilhud: true, hudpp: false, gameinfo: false }, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),
     },
   ),

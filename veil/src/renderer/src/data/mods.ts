@@ -51,14 +51,14 @@ export const GROUPS: Record<Mod['group'], { name: string; line: string }> = {
 
 export const MODS: Mod[] = [
   {
-    id: 'veilhud', name: 'VEIL HUD', group: 'hud', source: 'veil', excludes: ['hpbars'],
+    id: 'veilhud', name: 'VEIL HUD', group: 'hud', source: 'veil', excludes: ['hpbars', 'hudpp'],
     ingame: 'Nothing to open in the game: you design it in the Forge, and Apply rebuilds the pak. The change shows the next time Deadlock starts.',
-    blurb: 'Your Forge health bars, ult indicator and stamina, built into a real game pak.',
+    blurb: 'Health bars, stamina and ult indicator you design yourself in the Forge.',
     detail: 'VEIL takes the game’s own health bar stylesheet from your install, adds the design from the Forge, and installs it as a pak in addons. Heroes only; troopers, bosses and buildings stay stock. Rebuilt every time you apply.',
     impact: 'small',
   },
   {
-    id: 'hudpp', name: 'HUD++', group: 'hud', source: 'complock', author: 'jcStani', pak: true, size: '800 KB', match: 'HUD++',
+    id: 'hudpp', name: 'HUD++', group: 'hud', source: 'complock', author: 'jcStani', pak: true, size: '800 KB', match: 'HUD++', excludes: ['veilhud'],
     ingame: 'Press Esc in a match and click COMPLOCK, the button above Settings. That opens HUD++’s own panel: crosshair, minimap, top bar and item cooldowns.',
     cl: { vanilla: 'hud_vanilla.vpk', cumulative: 'hud.vpk', hidden: 'hud_nodamage.vpk' },
     blurb: 'A cleaner HUD that costs less to draw.',
