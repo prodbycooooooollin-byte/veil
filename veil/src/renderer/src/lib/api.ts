@@ -37,9 +37,9 @@ type Bridge = {
   togglePak(file: string): Promise<GameStatus>
   removePak(file: string): Promise<GameStatus>
   save(name: string, data: Uint8Array): Promise<string | null>
-  installHud(bar: unknown): Promise<string>
+  installHud(bar: unknown, extras?: unknown): Promise<string>
   removeHud(): Promise<GameStatus>
-  hudCss(bar: unknown): Promise<string>
+  hudCss(bar: unknown, extras?: unknown): Promise<Record<string, string>>
   clSync(wanted: string[], gameinfo: boolean): Promise<{ installed: string[]; game: string }>
   onClProgress(fn: (p: { title: string; done: number; total: number } | null) => void): Off
   managed(): Promise<Record<string, string | string[]>>
@@ -120,7 +120,7 @@ const mockBridge: Bridge = {
   },
   installHud: async () => 'pak01_dir.vpk',
   removeHud: () => wait(mock),
-  hudCss: async () => '/* browser preview: the CSS is built in the app */',
+  hudCss: async () => ({ preview: '/* browser preview: the CSS is built in the app */' }),
   clSync: async (wanted) => { await new Promise((r) => setTimeout(r, 700)); return { installed: wanted, game: '6860' } },
   onClProgress: () => noop,
   managed: async () => ({}),

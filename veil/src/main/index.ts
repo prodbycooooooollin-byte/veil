@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import * as dl from './deadlock'
-import { buildHudPak, hudCss, type HudBar } from './hud'
+import { buildHudPak, hudSheets, type HudBar, type HudExtras } from './hud'
 import * as cl from './complock'
 
 let win: BrowserWindow | null = null
@@ -160,13 +160,13 @@ ipcMain.handle('file:save', async (_e, name: string, data: Uint8Array) => {
   await writeFile(r.filePath, data)
   return r.filePath
 })
-ipcMain.handle('hud:install', async (_e, bar: HudBar) => {
+ipcMain.handle('hud:install', async (_e, bar: HudBar, extras?: HudExtras) => {
   const g = need()
-  const pak = await buildHudPak(join(g, 'game', 'citadel'), bar, app.getVersion())
+  const pak = await buildHudPak(join(g, 'game', 'citadel'), bar, extras, app.getVersion())
   return dl.installVeilPak(g, 'hud', pak)
 })
 ipcMain.handle('hud:remove', async () => { const g = need(); await dl.removeVeilPak(g, 'hud'); return dl.status(g) })
-ipcMain.handle('hud:css', (_e, bar: HudBar) => hudCss(bar))
+ipcMain.handle('hud:css', (_e, bar: HudBar, extras?: HudExtras) => hudSheets(bar, extras))
 /**
  * Makes the installed CompLock paks match the wanted list: downloads what is missing, removes what VEIL
  * installed earlier and is no longer wanted, and puts CompLock's gameinfo.gi in place or takes it out.
