@@ -27,7 +27,7 @@ export function HeroStage({ hero }: { hero?: Hero }) {
   return (
     <Boundary fallback={fallback} resetKey={hero.id}>
       {ready !== hero.id && <div className="hero-loading">Loading {hero.name}</div>}
-      <Canvas onCreated={(st) => st.camera.lookAt(0, 1.02, 0)} frameloop="demand" dpr={[1, 1.25]} camera={{ position: [0, 1.2, 4.6], fov: 30 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
+      <Canvas onCreated={(st) => st.camera.lookAt(0, 1.02, 0)} frameloop="demand" dpr={[1, 1.25]} camera={{ position: [0, 1.15, 5.6], fov: 30 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
         <ambientLight intensity={0.28} />
         <spotLight position={[0.6, 6, 3]} angle={0.42} penumbra={0.85} intensity={90} color="#ffffff" />
         <FrameCap fps={30} />

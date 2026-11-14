@@ -129,8 +129,9 @@ export const useStore = create<State>()(
       version: 4,
       // a saved config from before VEIL HUD and HUD++ excluded each other may have both on: keep VEIL HUD
       merge: (saved: any, current) => {
-        const on = { ...current.on, ...(saved?.on ?? {}) }
-        if (on.veilhud && on.hudpp) on.hudpp = false
+        const on: Record<string, boolean> = { ...current.on, ...(saved?.on ?? {}) }
+        // first in the catalogue wins (VEIL HUD before HUD++ and HP Bars)
+        for (const m of MODS) if (on[m.id]) for (const x of m.excludes ?? []) on[x] = false
         return { ...current, ...saved, on }
       },
       migrate: (old: any) => ({ ...old, on: { ...(old?.on ?? {}), veilhud: true, hudpp: false, gameinfo: false }, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),

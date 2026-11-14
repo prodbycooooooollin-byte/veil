@@ -65,7 +65,7 @@ export default function Console() {
   return (
     <div className="console">
       <div className="console-main">
-        <PageHead title="Console" sub="Every setting the game reads. Double-click to switch one on or off; type a value and press Enter to set it." />
+        <PageHead title="Console" sub="Every setting the game reads. Switches flip right in the list; click any other row to set your own value on the right. Your values are written to the game when you apply." />
         <div className="prompt">
           <label>
             <span aria-hidden>›</span>
@@ -79,15 +79,23 @@ export default function Console() {
             <span className="count num">{list.length} of {all.length}</span>
           </div>
         </div>
+        <div className="cv-head" aria-hidden><span>Setting</span><span>Value</span><span>What it does</span><span>Written to</span></div>
         <div className="cv-list" role="listbox" aria-label="Cvars">
-          {list.slice(0, 400).map((x) => (
-            <button key={x.name} role="option" aria-selected={v?.name === x.name} className={`cv ${v?.name === x.name ? 'sel' : ''} ${s.custom[x.name] !== undefined ? 'set' : ''}`} onClick={() => setSel(x.name)} onDoubleClick={() => quick(x)} title={/^(true|false)$/.test(x.def) ? 'Double-click to switch on or off' : 'Double-click to edit the value'}>
-              <span className="name"><Highlight text={x.name} q={query} /></span>
-              <span className="def">{current[x.name] ?? x.def}</span>
-              <span className="desc">{x.desc}</span>
-              <span className={`via ${x.via}`}>{x.via === 'gi' ? 'GI' : 'CFG'}</span>
-            </button>
-          ))}
+          {list.slice(0, 400).map((x) => {
+            const val = s.custom[x.name] ?? current[x.name] ?? x.def
+            const bool = /^(true|false)$/.test(x.def)
+            return (
+              <div key={x.name} role="option" tabIndex={0} aria-selected={v?.name === x.name} className={`cv ${v?.name === x.name ? 'sel' : ''} ${s.custom[x.name] !== undefined ? 'set' : ''}`}
+                onClick={() => setSel(x.name)} onDoubleClick={() => quick(x)} onKeyDown={(e) => e.key === 'Enter' && quick(x)}>
+                <span className="name"><Highlight text={x.name} q={query} /></span>
+                <span className="def">{bool
+                  ? <Switch checked={val === 'true'} onChange={(on) => { s.setCustom(x.name, on ? 'true' : 'false'); setSel(x.name) }} label={x.name} />
+                  : val}</span>
+                <span className="desc">{x.desc}</span>
+                <span className={`via ${x.via === 'gi' ? 'gi' : 'ae'}`} title={x.via === 'gi' ? 'Only gameinfo.gi can set it' : 'autoexec.cfg or the console'}>{x.via === 'gi' ? 'gameinfo' : 'autoexec'}</span>
+              </div>
+            )
+          })}
           {!list.length && <p className="empty">Nothing matches “{q}”. Start with ^ to match the beginning, or use * as a wildcard.</p>}
         </div>
       </div>
@@ -113,7 +121,7 @@ function Side({ v, current }: { v: Cvar; current?: string }) {
       <dl className="kv">
         <dt>Default</dt><dd>{v.def}</dd>
         {v.range && <><dt>Range</dt><dd>{v.range}</dd></>}
-        <dt>In your pack</dt><dd>{current ?? 'not set'}</dd>
+        <dt>In your config</dt><dd>{current ?? 'not set'}</dd>
         <dt>Where it goes</dt><dd>{v.via === 'gi' ? 'gameinfo.gi (engine-only value)' : 'autoexec.cfg or the console'}</dd>
         <dt>Group</dt><dd>{v.cat}</dd>
         {v.flags?.length ? <><dt>Flags</dt><dd>{v.flags.join(', ')}</dd></> : null}

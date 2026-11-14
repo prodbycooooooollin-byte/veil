@@ -81,40 +81,67 @@ export function hudCss(b: HudBar): string {
   rule(team('enemy', '#unit_healthbar_lagging'), { 'wash-color': b.enemy })
   rule(team('friend', '#unit_healthbar_lagging'), { 'wash-color': b.ally })
 
+  /*
+   * Placement. Every part is horizontal-align: center, and Panorama centres a box in the space its margins
+   * leave, so a margin moves it by HALF its size: to put a box's centre dx from the middle, give it a
+   * margin of 2·dx on that side (hx). Vertically, margin-top is the plain distance from the part's origin.
+   * The number and the ult icon share the bar's origin; the stamina row and the debuff row sit in a
+   * container that starts STAMINA_ORIGIN px higher (measured against jcStani's HP Bars, which places stamina
+   * at 101.59px to show it 2.5px under a bar at 27.77px). The layout mirrors the Forge preview (lib/hpbar.ts).
+   */
+  const STAMINA_ORIGIN = 65.2
+  const hx = (dx: number) => (dx >= 0 ? { 'margin-left': px(2 * dx), 'margin-right': '0px' } : { 'margin-left': '0px', 'margin-right': px(-2 * dx) })
+  const cx = left / 2 // the bar's centre after its own margin-left
+  const barL = cx - W / 2, barR = cx + W / 2
+  const fsUse = b.numberPos === 'inside' ? Math.min(fs, H + 3) : fs
+  const numW = fsUse * 3 // wide enough for four digits; the text is aligned inside this box
+  const numH = fsUse * 1.25
+  const numTop = b.numberPos === 'above' ? top - numH + 1 : top + H / 2 - numH / 2
+  const numCx = b.numberPos === 'inside' ? cx : b.numberPos === 'left' ? barL - 4 - numW / 2 : barL + numW / 2
+
   // health number
   if (!b.showNumber) rule('.player #UnitHealthbarValue', { visibility: 'collapse' })
   else {
-    const pos = b.numberPos === 'inside' ? { margin: `${px(top + H / 2 - fs * 0.62)} 0px 0px ${px(left / 2)}`, 'text-align': 'center' }
-      : b.numberPos === 'left' ? { margin: `${px(top + H / 2 - fs * 0.62)} 0px 0px ${px(left - W / 2 - fs * 1.4)}`, 'text-align': 'right' }
-      : { margin: `${px(top - fs - 3.5)} 0px 0px ${px(left - W / 2 + fs * 1.3)}`, 'text-align': 'left' }
     rule('.player #UnitHealthbarValue', {
       visibility: 'visible', opacity: '1', 'transition-property': 'none', transform: 'none', padding: '0px',
+      width: px(numW), height: px(numH), 'margin-top': px(numTop), 'margin-bottom': '0px', ...hx(numCx),
+      'text-align': b.numberPos === 'inside' ? 'center' : b.numberPos === 'left' ? 'right' : 'left',
       'horizontal-align': 'center', 'vertical-align': 'top', 'font-family': 'numericOracle', 'font-weight': 'bold',
-      'font-size': px(fs), 'text-shadow': '0px 0px 1px 4.0 #000000', color: '#FFFFFF', 'wash-color': '#FFFFFF', ...pos,
+      'font-size': px(fsUse), 'text-shadow': '0px 0px 1px 4.0 #000000', color: '#FFFFFF', 'wash-color': '#FFFFFF',
+      'ui-scale': '100%',
     })
+    // the stock sheet pushes ally numbers 20px aside; keep both sides where the design puts them
+    rule(team('friend', '#UnitHealthbarValue'), { ...hx(numCx) })
   }
+  const aboveTop = b.showNumber && b.numberPos === 'above' ? numTop : top // top of whatever sits above the bar
 
-  // stamina pips under the bar
+  // stamina pips under the bar, starting at its left edge
   if (!b.stamina) rule('.player #StaminaContainer', { visibility: 'collapse' })
   else {
-    rule('.player #StaminaContainer', { 'margin-top': px(top + H + 4), 'margin-left': px(left), width: px(W), 'horizontal-align': 'center', 'vertical-align': 'top', 'flow-children': 'right', transform: 'none' })
+    rule('.player #StaminaContainer', {
+      'margin-top': px(STAMINA_ORIGIN + top + H + 2.5), 'margin-bottom': '0px', width: px(W), height: '5px', ...hx(cx),
+      'horizontal-align': 'center', 'vertical-align': 'top', 'flow-children': 'right', transform: 'none', 'pre-transform-scale2d': '1',
+    })
     rule('.player .StaminaPip', { margin: '0px 1.9px 0px 0px' })
     rule('.player .StaminaPip .StaminaPipIcon', { width: '5px', height: '5px', 'background-image': 'none', 'background-color': '#FFFFFF', 'border-radius': '50%' })
   }
 
-  // debuffs sit right above the number line
-  rule('.player #StatusEffects', b.debuffs ? { 'margin-top': px(top - fs - 18), 'horizontal-align': 'center', 'vertical-align': 'top' } : { visibility: 'collapse' })
+  // debuffs right above the number (or the bar), the same 31.7px step HP Bars uses above its number
+  rule('.player #StatusEffects', b.debuffs
+    ? { 'margin-top': px(aboveTop + 31.74), 'margin-bottom': '0px', ...hx(cx), 'horizontal-align': 'center', 'vertical-align': 'top' }
+    : { visibility: 'collapse' })
 
   // ultimate ready: the game already marks heroes with .has_ultimate; VEIL decides where and how it shows
   const u = b.ult
   if (!u.show) rule('.player .unit_info_panel', { visibility: 'collapse' })
   else {
     const s = u.size * 1.4
-    const m = u.pos === 'left' ? `${px(top + H / 2 - s / 2)} ${px(W / 2 + left + s * 0.7)} 0px 0px`
-      : u.pos === 'right' ? `${px(top + H / 2 - s / 2)} 0px 0px ${px(W + left + s * 0.9)}`
-      : u.pos === 'above' ? `${px(top - fs - s - 6)} 0px 0px ${px(W + left - s)}`
-      : `${px(top + H + 9)} 0px 0px ${px(W + left - s)}`
-    rule('.player .unit_info_panel', { visibility: 'visible', width: px(s), height: px(s), margin: m, 'horizontal-align': 'center', 'vertical-align': 'top', 'pre-transform-scale2d': '1', 'z-index': '21' })
+    const leftOfBar = barL - 3 - s / 2 - (b.showNumber && b.numberPos === 'left' ? numW + 4 : 0)
+    const [ux, uy] = u.pos === 'left' ? [leftOfBar, top + H / 2 - s / 2]
+      : u.pos === 'right' ? [barR + 3 + s / 2, top + H / 2 - s / 2]
+      : u.pos === 'above' ? [barR - s / 2, aboveTop - s - 3]
+      : [barR - s / 2, top + H + (b.stamina ? 10 : 3)]
+    rule('.player .unit_info_panel', { visibility: 'visible', width: px(s), height: px(s), 'margin-top': px(uy), 'margin-bottom': '0px', ...hx(ux), 'horizontal-align': 'center', 'vertical-align': 'top', 'pre-transform-scale2d': '1', 'z-index': '21' })
     const shape: Record<string, string> = u.style === 'dot' ? { 'background-image': 'none', 'background-color': '#FFFFFF', 'border-radius': '50%' }
       : u.style === 'ring' ? { 'background-image': 'none', 'background-color': 'transparent', border: `2px solid #FFFFFF`, 'border-radius': '50%' }
       : {}

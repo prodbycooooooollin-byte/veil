@@ -110,7 +110,7 @@ export function Dock() {
       <div className="fig"><b><Tween value={p.gain.avg} format={pct} /></b><span>average FPS</span></div>
       <div className="fig"><b><Tween value={p.gain.low} format={pct} /></b><span>1% lows</span></div>
       <div className="sep" />
-      <div className="fig"><b><Tween value={p.items.length} format={(v) => String(Math.round(v))} /></b><span>in your pack</span></div>
+      <div className="fig"><b><Tween value={p.items.length} format={(v) => String(Math.round(v))} /></b><span>in your config</span></div>
       <button className="btn brass" onClick={applyPack} disabled={!s.status?.found}>Apply to Deadlock</button>
     </div>
   )

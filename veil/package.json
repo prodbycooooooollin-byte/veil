@@ -1,7 +1,7 @@
 {
   "name": "veil",
   "productName": "VEIL",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Deadlock tuning, mods and customization",
   "main": "out/main/index.js",
   "private": true,

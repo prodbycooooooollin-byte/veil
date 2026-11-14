@@ -56,7 +56,7 @@ export default function Install() {
         sub={<>What is installed in Deadlock right now, and a clean way back to stock.{!isApp && ' Browser preview: this shows sample data and touches no files.'}</>}
         actions={<>
           <button className="btn ghost" onClick={() => run(api.pick)}><FolderOpen size={15} />{st?.found ? 'Change folder' : 'Pick folder'}</button>
-          <button className="btn brass" onClick={applyPack} disabled={!st?.found}>Apply pack</button>
+          <button className="btn brass" onClick={applyPack} disabled={!st?.found}>Apply config</button>
         </>}
       />
 
