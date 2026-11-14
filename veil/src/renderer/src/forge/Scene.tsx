@@ -1,8 +1,8 @@
-// The Forge's 3D range: the chosen hero on a reflective floor in front of their own background art,
-// with the health bar and damage numbers floating over their head exactly where the game puts them.
-import { Suspense, useEffect, useRef, useState, type RefObject } from 'react'
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { ContactShadows, MeshReflectorMaterial, OrbitControls, Sparkles } from '@react-three/drei'
+// The Forge's stage: the chosen hero on a small brass-rimmed platform under a cone of light, inside a dark
+// curved backdrop, with the health bar and damage numbers projected over their head every frame.
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { ContactShadows, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { Boundary, HeroModel, HERO_HEIGHT } from '../components/HeroModel'
 import { StudioEnv } from '../components/HeroStage'
@@ -11,73 +11,100 @@ import { useStore } from '../lib/store'
 import type { Hero } from '../lib/heroes'
 import type { Hit, Sim } from './sim'
 
-export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'crosshair' | 'damage' | 'hero' | 'export'
+export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'ult' | 'crosshair' | 'damage' | 'hero' | 'export'
 
 export function ForgeScene({ hero, sim, tab, barRef, dmgRef }: { hero?: Hero; sim: Sim; tab: Tab; barRef: RefObject<HTMLCanvasElement | null>; dmgRef: RefObject<HTMLDivElement | null> }) {
   const color = hero?.color ?? '#d4a855'
   return (
-    <Canvas className="three" shadows dpr={[1, 1.75]} camera={{ position: [0.5, 1.75, 5.6], fov: 34 }} gl={{ antialias: true }}>
-      <color attach="background" args={['#040404']} />
-      <fog attach="fog" args={['#040404', 7, 17]} />
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[3, 5, 3]} intensity={2.4} color="#f3ead9" castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-3, 2.2, -2.5]} intensity={3} color={color} />
-      <pointLight position={[2.6, 1, -1.5]} intensity={18} distance={8} color="#5fe0c4" />
-      <Suspense fallback={null}>
-        <StudioEnv color={color} />
-      </Suspense>
-      {hero?.background && (
-        <Boundary fallback={null} resetKey={hero.id}>
-          <Suspense fallback={null}><Backdrop url={hero.background} /></Suspense>
-        </Boundary>
-      )}
+    <Canvas className="three" shadows dpr={[1, 1.75]} camera={{ position: [0.6, 1.7, 5.4], fov: 32 }} gl={{ antialias: true }}>
+      <color attach="background" args={['#030303']} />
+      <fog attach="fog" args={['#030303', 9, 22]} />
+      <ambientLight intensity={0.35} />
+      <spotLight position={[0.6, 6.5, 2.2]} angle={0.42} penumbra={0.85} intensity={95} distance={14} decay={1.6} color="#f6ecd9" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
+      <directionalLight position={[-3.2, 2.4, -2.8]} intensity={2.6} color={color} />
+      <directionalLight position={[3.4, 1.4, -2.4]} intensity={1.4} color="#5fe0c4" />
+      <directionalLight position={[0, 1.6, 4]} intensity={0.55} color="#f3ead9" />
+      <Suspense fallback={null}><StudioEnv color={color} /></Suspense>
 
       <Boundary fallback={<Mannequin color={color} />} resetKey={hero?.id}>
         <Suspense fallback={<Mannequin color={color} />}>
-          {hero?.model ? <HeroModel key={hero.id} url={hero.model} /> : <Mannequin color={color} />}
+          <group position-y={0.07}>{hero?.model ? <HeroModel key={hero.id} url={hero.model} /> : <Mannequin color={color} />}</group>
         </Suspense>
       </Boundary>
 
       <BarPainter sim={sim} canvas={barRef} />
-      <Project el={barRef} at={[0, HERO_HEIGHT + 0.32, 0]} />
-      <Project el={dmgRef} at={[0.55, HERO_HEIGHT + 0.25, 0]} anchor="left" />
-      <Floor color={color} />
-      <Sparkles count={40} scale={[8, 3, 6]} position={[0, 1.6, -1]} size={1.6} speed={0.25} opacity={0.35} color={color} />
-      <ContactShadows position={[0, 0.001, 0]} opacity={0.7} scale={6} blur={2.4} far={2.5} />
+      <Project el={barRef} at={[0, HERO_HEIGHT + 0.4, 0]} />
+      <Project el={dmgRef} at={[0.55, HERO_HEIGHT + 0.33, 0]} anchor="left" />
+      <Cyclorama color={color} />
+      <Platform color={color} />
+      <LightCone />
+      <ContactShadows position={[0, 0.071, 0]} opacity={0.8} scale={2.4} blur={2} far={2} />
       <Rig aim={tab === 'crosshair'} />
     </Canvas>
   )
 }
 
-function Backdrop({ url }: { url: string }) {
-  const tex = useLoader(THREE.TextureLoader, url)
-  tex.colorSpace = THREE.SRGBColorSpace
-  const aspect = tex.image ? tex.image.width / tex.image.height : 16 / 9
-  return (
-    <mesh position={[0, 3.2, -7.5]}>
-      <planeGeometry args={[11 * aspect, 11]} />
-      <meshBasicMaterial map={tex} color="#5a5650" toneMapped={false} fog={false} transparent opacity={0.55} />
-    </mesh>
-  )
+/** A dark sphere around the stage: near black at the floor, a faint warm wash behind the hero. */
+function Cyclorama({ color }: { color: string }) {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { tint: { value: new THREE.Color(color) } },
+    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: `varying vec3 vP; uniform vec3 tint;
+      void main(){
+        float h = vP.y;
+        vec3 base = mix(vec3(.012), vec3(.045, .04, .035), smoothstep(-.05, .35, h));
+        base = mix(base, vec3(.01), smoothstep(.35, .9, h));
+        float back = pow(max(0., -vP.z), 3.) * smoothstep(-.1, .3, h) * (1. - smoothstep(.3, .7, h));
+        base += tint * back * .09 + vec3(.9, .8, .6) * back * .03;
+        gl_FragColor = vec4(base, 1.);
+      }`,
+  }), [color])
+  return <mesh material={mat}><sphereGeometry args={[18, 48, 32]} /></mesh>
 }
 
-function Floor({ color }: { color: string }) {
+function Platform({ color }: { color: string }) {
+  const floor = useMemo(() => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    vertexShader: 'varying vec2 vU; void main(){ vU = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: `varying vec2 vU;
+      void main(){
+        float r = length(vU);
+        vec2 g = abs(fract(vU * 1.25) - .5) / fwidth(vU * 1.25);
+        float line = 1. - min(min(g.x, g.y), 1.);
+        float fade = 1. - smoothstep(1.5, 7., r);
+        float pool = 1. - smoothstep(.4, 3.2, r);
+        vec3 c = vec3(.03, .028, .025) + vec3(.9, .82, .7) * pool * .05;
+        gl_FragColor = vec4(c + vec3(.9, .85, .75) * line * .05 * fade, fade * .96);
+      }`,
+  }), [])
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[40, 40]} />
-        <MeshReflectorMaterial resolution={512} mirror={0.35} blur={[400, 120]} mixBlur={1} mixStrength={2.2} color="#0b0b0b" metalness={0.5} roughness={0.9} depthScale={0.8} minDepthThreshold={0.4} maxDepthThreshold={1.2} />
+      <mesh rotation-x={-Math.PI / 2} material={floor} receiveShadow><planeGeometry args={[16, 16]} /></mesh>
+      <mesh position-y={0.035} receiveShadow castShadow>
+        <cylinderGeometry args={[0.92, 0.96, 0.07, 96]} />
+        <meshStandardMaterial color="#0d0c0b" metalness={0.75} roughness={0.38} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position-y={0.004}>
-        <ringGeometry args={[0.62, 0.64, 96]} />
-        <meshBasicMaterial color={color} transparent opacity={0.7} toneMapped={false} />
+      <mesh position-y={0.071} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[0.86, 0.9, 128]} />
+        <meshStandardMaterial color="#d4a855" metalness={1} roughness={0.25} emissive="#5a3d10" emissiveIntensity={0.4} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position-y={0.003}>
-        <ringGeometry args={[0.9, 0.903, 96]} />
-        <meshBasicMaterial color="#ede4d3" transparent opacity={0.18} />
+      <mesh position-y={0.0715} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[0.5, 0.505, 128]} />
+        <meshBasicMaterial color={color} transparent opacity={0.45} toneMapped={false} />
       </mesh>
     </group>
   )
+}
+
+/** The visible beam of the overhead light: an open cone, brightest at the top and fading out. */
+function LightCone() {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    vertexShader: 'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY = uv.y; vec4 w = modelViewMatrix * vec4(position, 1.); vN = normalize(normalMatrix * normal); vV = normalize(-w.xyz); gl_Position = projectionMatrix * w; }',
+    fragmentShader: 'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.6); float a = edge * smoothstep(0., .9, vY) * .085; gl_FragColor = vec4(vec3(1., .93, .8) * a, a); }',
+  }), [])
+  return <mesh material={mat} position={[0.25, 3.3, 0.75]} rotation-x={-0.12}><cylinderGeometry args={[0.18, 1.35, 6.6, 64, 1, true]} /></mesh>
 }
 
 /** Stand-in figure while the model loads or if it can't be loaded. */
@@ -104,6 +131,8 @@ function Project({ el, at, anchor = 'center' }: { el: RefObject<HTMLElement | nu
   useFrame(() => {
     const e = el.current
     if (!e) return
+    // OrbitControls has already moved the camera this frame; refresh its matrices so the bar isn't a frame behind
+    camera.updateMatrixWorld()
     v.current.set(...at).project(camera)
     const x = (v.current.x * 0.5 + 0.5) * size.width
     const y = (-v.current.y * 0.5 + 0.5) * size.height
@@ -169,5 +198,5 @@ function Rig({ aim }: { aim: boolean }) {
     camera.position.lerp(goal.current, Math.min(1, dt * 3))
     if (controls) { controls.target.lerp(new THREE.Vector3(0, 1.45, 0), Math.min(1, dt * 3)); controls.update() }
   })
-  return <OrbitControls makeDefault enabled={!aim} enablePan={false} target={[0, 1.3, 0]} minDistance={2.2} maxDistance={8} minPolarAngle={0.6} maxPolarAngle={1.62} enableDamping dampingFactor={0.08} />
+  return <OrbitControls makeDefault enabled={!aim} enablePan={false} target={[0, 1.25, 0]} minDistance={3.2} maxDistance={7.5} minPolarAngle={1.05} maxPolarAngle={1.56} minAzimuthAngle={-1.2} maxAzimuthAngle={1.2} enableDamping dampingFactor={0.08} rotateSpeed={0.6} />
 }

@@ -7,7 +7,7 @@ export const STYLES: { id: BarStyle; name: string }[] = [
   { id: 'classic', name: 'Classic' }, { id: 'neon', name: 'Neon' }, { id: 'minimal', name: 'Minimal' },
 ]
 
-export type BarState = { hp: number; max: number; lag: number; stamina: number; debuffs: number }
+export type BarState = { hp: number; max: number; lag: number; stamina: number; debuffs: number; ult?: number }
 
 function shade(hex: string, k: number) {
   const v = parseInt(hex.slice(1), 16)
@@ -111,6 +111,44 @@ export function drawBar(ctx: CanvasRenderingContext2D, w: number, h: number, dpr
       ctx.fillStyle = colors[i % 3]; ctx.fillRect(-3.5, -3.5, 7, 7)
       ctx.restore()
     }
+  }
+
+  // ultimate: charge 0..1, lit when ready
+  const u = bar.ult
+  if (u?.show) {
+    const charge = Math.max(0, Math.min(1, st.ult ?? 1)), ready = charge >= 1, r = u.size / 2
+    let ux = x + bw + 6 + r, uy = y + bh / 2
+    if (u.pos === 'left') ux = x - 6 - r - (showNumber && bar.numberPos === 'left' ? bar.numberSize * 1.9 : 0)
+    if (u.pos === 'above') { ux = x + bw - r; uy = y - numberH - (bar.debuffs && st.debuffs ? 16 : 0) - r - 3 }
+    if (u.pos === 'below') { ux = x + bw - r; uy = y + bh + r + 4 }
+    const t = performance.now() / 1000
+    ctx.save()
+    if (ready) { ctx.shadowColor = u.color; ctx.shadowBlur = 8 + Math.sin(t * 5) * 4 }
+    if (u.style === 'dot') {
+      ctx.beginPath(); ctx.arc(ux, uy, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fill()
+      ctx.beginPath(); ctx.moveTo(ux, uy); ctx.arc(ux, uy, r - 1.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * charge); ctx.closePath()
+      ctx.fillStyle = ready ? u.color : 'rgba(243,234,217,.45)'; ctx.fill()
+    } else if (u.style === 'ring') {
+      ctx.lineWidth = Math.max(2, r * 0.35)
+      ctx.beginPath(); ctx.arc(ux, uy, r, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.stroke()
+      ctx.beginPath(); ctx.arc(ux, uy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * charge); ctx.strokeStyle = ready ? u.color : 'rgba(243,234,217,.55)'; ctx.stroke()
+    } else if (u.style === 'icon') {
+      const d = r * 1.25
+      const diamond = () => { ctx.beginPath(); ctx.moveTo(ux, uy - d); ctx.lineTo(ux + d * 0.8, uy); ctx.lineTo(ux, uy + d); ctx.lineTo(ux - d * 0.8, uy); ctx.closePath() }
+      diamond(); ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fill()
+      ctx.save(); diamond(); ctx.clip()
+      ctx.fillStyle = ready ? u.color : 'rgba(243,234,217,.5)'
+      ctx.fillRect(ux - d, uy + d - 2 * d * charge, d * 2, 2 * d * charge)
+      ctx.restore()
+      diamond(); ctx.lineWidth = 1.2; ctx.strokeStyle = ready ? '#fff' : 'rgba(243,234,217,.35)'; ctx.stroke()
+    } else {
+      ctx.font = `800 ${u.size}px "Archivo Variable", system-ui`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      const label = ready ? 'ULT' : `${Math.round(charge * 100)}%`
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(label, ux + r * 0.4, uy)
+      ctx.fillStyle = ready ? u.color : 'rgba(243,234,217,.6)'; ctx.fillText(label, ux + r * 0.4, uy)
+    }
+    ctx.restore()
   }
 
   // stamina dots under the bar

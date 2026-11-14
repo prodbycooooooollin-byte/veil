@@ -9,7 +9,7 @@ export type XSpec = {
   scale: number
   outline: { on: boolean; width: number; color: string; opacity: number }
   glow: { on: boolean; size: number }
-  lines: { on: boolean; length: number; thickness: number; gap: number; rotate: 0 | 45; tShape: boolean; taper: boolean; round: boolean }
+  lines: { on: boolean; length: number; lengthV: number | null; thickness: number; gap: number; rotate: 0 | 45; tShape: boolean; taper: boolean; round: boolean }
   dot: { on: boolean; size: number; shape: 'circle' | 'square' | 'diamond' }
   ring: { on: boolean; radius: number; thickness: number; segments: number }
   brackets: { on: boolean; size: number; gap: number; thickness: number }
@@ -21,7 +21,7 @@ export const BASE: XSpec = {
   name: 'Custom', color: '#ffffff', color2: null, opacity: 1, scale: 1,
   outline: { on: true, width: 1, color: '#000000', opacity: 0.7 },
   glow: { on: false, size: 6 },
-  lines: { on: true, length: 8, thickness: 2, gap: 4, rotate: 0, tShape: false, taper: false, round: false },
+  lines: { on: true, length: 8, lengthV: null, thickness: 2, gap: 4, rotate: 0, tShape: false, taper: false, round: false },
   dot: { on: false, size: 3, shape: 'circle' },
   ring: { on: false, radius: 12, thickness: 1.5, segments: 0 },
   brackets: { on: false, size: 6, gap: 10, thickness: 2 },
@@ -43,6 +43,23 @@ export const make = (name: string, p: Patch): XSpec => {
 const off = { on: false }
 
 export const LIBRARY: { group: string; items: XSpec[] }[] = [
+  {
+    group: 'Competitive',
+    items: [
+      make('Static cyan', { color: '#00ffff', lines: { length: 4, thickness: 1, gap: 2 }, outline: { width: 1, opacity: 1 } }),
+      make('Green mini', { color: '#00ff00', lines: { length: 3, thickness: 1, gap: 1 }, outline: { width: 1, opacity: 1 } }),
+      make('Yellow small', { color: '#ffff00', lines: { length: 4, thickness: 1, gap: 2 }, outline: { width: 1, opacity: 0.9 } }),
+      make('Pink pixel', { color: '#ff5fd2', lines: { length: 2, thickness: 1, gap: 1 }, dot: { on: true, size: 1, shape: 'square' }, outline: { width: 1, opacity: 1 } }),
+      make('White thin', { outline: off, lines: { length: 6, thickness: 1, gap: 3 } }),
+      make('Thick static', { lines: { length: 5, thickness: 3, gap: 2 }, outline: { width: 1, opacity: 1 } }),
+      make('Tall', { color: '#00ffff', lines: { length: 4, lengthV: 7, thickness: 1, gap: 2 }, outline: { width: 1, opacity: 1 } }),
+      make('Wide', { color: '#9cff7a', lines: { length: 7, lengthV: 4, thickness: 1, gap: 2 }, outline: { width: 1, opacity: 1 } }),
+      make('Tiny T', { lines: { length: 4, thickness: 1, gap: 2, tShape: true }, outline: { width: 1, opacity: 1 } }),
+      make('Dot gap', { color: '#00ff00', lines: { length: 3, thickness: 1, gap: 4 }, dot: { on: true, size: 2, shape: 'square' }, outline: { width: 1, opacity: 1 } }),
+      make('Red tight', { color: '#ff3b3b', lines: { length: 3, thickness: 2, gap: 1 }, outline: { width: 1, opacity: 1 } }),
+      make('Lone pixel', { lines: off, dot: { on: true, size: 2, shape: 'square' }, color: '#00ffff', outline: { width: 1, opacity: 1 } }),
+    ],
+  },
   {
     group: 'Classic',
     items: [
@@ -109,6 +126,8 @@ export function gameFit(s: XSpec): { ok: boolean; lost: string[] } {
   if (s.lines.on && s.lines.tShape) lost.push('T-shape')
   if (s.lines.on && s.lines.taper) lost.push('tapered lines')
   if (s.lines.on && s.lines.round) lost.push('rounded ends')
+  if (s.lines.on && s.lines.lengthV !== null && s.lines.lengthV !== s.lines.length) lost.push('separate vertical length')
+  if (s.outline.on && s.outline.color.toLowerCase() !== '#000000') lost.push('outline colour')
   if (s.dot.on && s.dot.shape !== 'circle') lost.push(`${s.dot.shape} dot`)
   if (s.color2) lost.push('gradient')
   if (s.glow.on) lost.push('glow')
@@ -135,7 +154,7 @@ export function toCvars(s: XSpec): Record<string, string> {
 /** Furthest point the spec draws from the centre, in units. */
 export function extent(s: XSpec): number {
   return Math.max(
-    s.lines.on ? s.lines.gap + s.lines.length : 0, s.dot.on ? s.dot.size : 0, s.ring.on ? s.ring.radius + s.ring.thickness : 0,
+    s.lines.on ? s.lines.gap + Math.max(s.lines.length, s.lines.lengthV ?? 0) : 0, s.dot.on ? s.dot.size : 0, s.ring.on ? s.ring.radius + s.ring.thickness : 0,
     s.brackets.on ? s.brackets.gap + s.brackets.size : 0, s.chevron.on ? s.chevron.offset + s.chevron.size : 0, 4,
   )
 }

@@ -154,6 +154,12 @@ ipcMain.handle('file:save', async (_e, name: string, data: Uint8Array) => {
   await writeFile(r.filePath, data)
   return r.filePath
 })
+ipcMain.handle('game:scan', async () => dl.scan(need()))
+ipcMain.handle('game:quarantine', async (_e, rel: string[]) => { const g = need(); await dl.quarantine(g, rel); return dl.scan(g) })
+ipcMain.handle('game:unremove', async (_e, id: string) => { const g = need(); await dl.restoreRemoved(g, id); return dl.scan(g) })
+ipcMain.handle('game:fresh', async () => { const g = need(); await dl.prepareFreshStart(g); return dl.status(g) })
+// Steam re-downloads every stock file that was changed (gameinfo.gi among them). Addons are left alone.
+ipcMain.handle('steam:validate', () => shell.openExternal('steam://validate/1422450'))
 ipcMain.handle('open', (_e, url: string) => { if (/^https:\/\//.test(url)) shell.openExternal(url) })
 ipcMain.handle('reveal', () => { if (gamePath) shell.openPath(join(gamePath, 'game', 'citadel')) })
 

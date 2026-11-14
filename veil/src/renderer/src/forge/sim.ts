@@ -8,6 +8,7 @@ export class Sim {
   stamina = 3
   debuffs = 1
   total = 0
+  ult = 0.4
   lastHit = 0
   lagHold = 0
   hits: Hit[] = []
@@ -49,6 +50,8 @@ export class Sim {
       this.nextStamina = 2.4
       this.stamina = Math.random() < 0.4 && this.stamina > 0 ? this.stamina - 1 : Math.min(3, this.stamina + 1)
     }
+    // ult charges over ~12 s, stays ready for a while, then is "used"
+    this.ult = this.ult >= 1 ? (Math.random() < dt * 0.25 ? 0 : 1) : Math.min(1, this.ult + dt / 12)
     this.nextDebuff -= dt
     if (this.nextDebuff <= 0) { this.nextDebuff = 4 + Math.random() * 4; this.debuffs = Math.floor(Math.random() * 3) }
   }

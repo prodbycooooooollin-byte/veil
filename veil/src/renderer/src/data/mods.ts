@@ -114,11 +114,32 @@ export const MODS: Mod[] = [
     before: CL + 'pack/street-stock.webp', after: CL + 'pack/lowdetailmap-after.webp',
   },
   {
-    id: 'lighting', name: 'Brighter lighting', group: 'effects', source: 'complock', author: 'HoppCX', pak: true,
+    id: 'lighting', name: 'Brighter lighting', group: 'effects', source: 'complock', author: 'BreadRollius', pak: true,
     blurb: 'A brighter, flatter image.',
     detail: 'No vignette or base bloom, and no lamp, storm or street light glow.',
     gain: { avg: 2.9, low: 0 },
     before: CL + 'pack/street-stock.webp', after: CL + 'pack/lighting-after.webp',
+  },
+  {
+    id: 'troopers', name: 'Low-poly troopers', group: 'effects', source: 'complock', author: 'aglow', pak: true, impact: 'medium',
+    blurb: 'Lane troopers with far simpler models and materials.',
+    detail: 'There are dozens of troopers on screen in a lane push. Cheaper models take load off both the processor and the graphics card. Not part of CompLock’s benchmark.',
+  },
+  {
+    id: 'outlines', name: 'Thicker outlines', group: 'visibility', source: 'complock', pak: true,
+    blurb: 'Heroes get a thicker outline so they stand out from the map.',
+    detail: 'Replaces the outline shader. There is one pak for DirectX 11 and one for Vulkan; install the one that matches the renderer you play on.',
+    options: [ { id: 'dx11', label: 'DirectX 11' }, { id: 'vulkan', label: 'Vulkan' } ],
+  },
+  {
+    id: 'nomusic', name: 'No music, low gun volume', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    blurb: 'Music off and your own gun quieter, so footsteps and abilities come through.',
+    detail: 'A sound mix change rather than a performance one.',
+  },
+  {
+    id: 'kovaak', name: 'KovaaK’s hit sounds', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    blurb: 'Hit sounds from the aim trainer, as a ready pak.',
+    detail: 'Replaces the stock hit indicator sounds. Only one hit sound pak can be active at a time.',
   },
   {
     id: 'hpbars', name: 'jcStani’s HP Bars', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,

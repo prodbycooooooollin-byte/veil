@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
+import { inspect, type PakInfo } from './vpk'
 
 const BEGIN = '// >>> VEIL managed block, edited by the VEIL app'
 const END = '// <<< VEIL'
@@ -227,4 +228,93 @@ export async function togglePak(game: string, file: string): Promise<string> {
 
 export async function removePak(game: string, file: string): Promise<void> {
   await unlink(join(addonsDir(game), basename(file)))
+}
+
+/* ---------- scanning and cleaning up what other tools left behind ---------- */
+
+export type ScannedPak = PakInfo & { file: string; size: number; enabled: boolean; name?: string; author?: string }
+export type Leftover = { file: string; what: string }
+export type RemovedSet = { id: string; when: number; files: string[] }
+
+const removedRoot = (game: string) => join(citadel(game), '.veil-removed')
+
+/** Every pak in addons with what it contains, plus loose files other mod tools leave next to the game. */
+export async function scan(game: string): Promise<{ paks: ScannedPak[]; leftovers: Leftover[]; removed: RemovedSet[] }> {
+  const dir = addonsDir(game)
+  const paks: ScannedPak[] = []
+  const leftovers: Leftover[] = []
+  if (existsSync(dir)) {
+    for (const f of await readdir(dir)) {
+      const full = join(dir, f)
+      if (/\.vpk(\.off)?$/i.test(f)) {
+        const s = await stat(full)
+        paks.push({ ...(await inspect(full)), file: f, size: s.size, enabled: !f.endsWith('.off') })
+      } else if (/^(mods\.txt|\.sigil\.json|\.sigil_disabled|modinfo\.json|.*\.json)$/i.test(f) || f.startsWith('.sigil')) {
+        leftovers.push({ file: `addons/${f}`, what: f === 'mods.txt' ? 'Load order list from another mod pack' : 'Settings of another mod manager' })
+      }
+    }
+  }
+  for (const f of await readdir(citadel(game))) {
+    if (/^gameinfo\.gi\.(?!veil-backup).+/i.test(f)) leftovers.push({ file: f, what: 'gameinfo.gi backup from another tool' })
+  }
+  if (existsSync(join(citadel(game), 'cfg'))) {
+    for (const f of await readdir(join(citadel(game), 'cfg'))) {
+      if (/^autoexec\.cfg\..+/i.test(f)) leftovers.push({ file: `cfg/${f}`, what: 'autoexec.cfg backup from another tool' })
+    }
+  }
+  const removed: RemovedSet[] = []
+  if (existsSync(removedRoot(game))) {
+    for (const id of await readdir(removedRoot(game))) {
+      try { removed.push(JSON.parse(await readFile(join(removedRoot(game), id, 'manifest.json'), 'utf8'))) } catch {}
+    }
+  }
+  paks.sort((a, b) => a.file.localeCompare(b.file))
+  removed.sort((a, b) => b.when - a.when)
+  return { paks, leftovers, removed }
+}
+
+/**
+ * Moves files (paths relative to game/citadel) into game/citadel/.veil-removed/<id>, where the game never looks.
+ * Nothing is deleted; restoreRemoved() puts a set back.
+ */
+export async function quarantine(game: string, rel: string[]): Promise<RemovedSet> {
+  const id = new Date().toISOString().replace(/[:.]/g, '-')
+  const dest = join(removedRoot(game), id)
+  await mkdir(dest, { recursive: true })
+  const moved: string[] = []
+  for (const r of rel) {
+    const from = join(citadel(game), r)
+    if (!existsSync(from)) continue
+    const to = join(dest, r)
+    await mkdir(join(to, '..'), { recursive: true })
+    await rename(from, to)
+    moved.push(r)
+  }
+  const set = { id, when: Date.now(), files: moved }
+  await writeFile(join(dest, 'manifest.json'), JSON.stringify(set, null, 2))
+  return set
+}
+
+export async function restoreRemoved(game: string, id: string): Promise<number> {
+  const src = join(removedRoot(game), basename(id))
+  const set: RemovedSet = JSON.parse(await readFile(join(src, 'manifest.json'), 'utf8'))
+  let n = 0
+  for (const r of set.files) {
+    const to = join(citadel(game), r)
+    if (existsSync(to)) continue
+    await mkdir(join(to, '..'), { recursive: true })
+    await rename(join(src, r), to)
+    n++
+  }
+  await unlink(join(src, 'manifest.json'))
+  return n
+}
+
+/**
+ * Prepares a clean start: parks autoexec.cfg and VEIL's own gameinfo backup (which may hold another tool's
+ * changes) so that after Steam restores the stock gameinfo.gi, the next apply backs up the real original.
+ */
+export async function prepareFreshStart(game: string): Promise<RemovedSet> {
+  const rel = ['cfg/autoexec.cfg', 'gameinfo.gi' + BACKUP_SUFFIX].filter((r) => existsSync(join(citadel(game), r)))
+  return quarantine(game, rel)
 }

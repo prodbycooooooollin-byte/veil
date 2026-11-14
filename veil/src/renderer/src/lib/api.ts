@@ -12,6 +12,9 @@ export type GameStatus = {
 
 export type UpdateState = { state: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'none' | 'error'; version?: string; percent?: number; message?: string }
 type Off = () => void
+export type PakKind = 'skin' | 'hud' | 'effects' | 'sound' | 'map' | 'model' | 'mixed' | 'unknown'
+export type ScannedPak = { file: string; size: number; enabled: boolean; files: number; kind: PakKind; label: string; name?: string; author?: string; heroes: string[]; sample: string[] }
+export type Scan = { paks: ScannedPak[]; leftovers: { file: string; what: string }[]; removed: { id: string; when: number; files: string[] }[] }
 
 type Bridge = {
   win(a: 'min' | 'max' | 'close'): Promise<void>
@@ -34,6 +37,11 @@ type Bridge = {
   togglePak(file: string): Promise<GameStatus>
   removePak(file: string): Promise<GameStatus>
   save(name: string, data: Uint8Array): Promise<string | null>
+  scan(): Promise<Scan>
+  quarantine(rel: string[]): Promise<Scan>
+  unremove(id: string): Promise<Scan>
+  freshStart(): Promise<GameStatus>
+  validate(): Promise<void>
   open(url: string): Promise<void>
   reveal(): Promise<void>
 }
@@ -53,6 +61,22 @@ let mock: GameStatus = {
     { file: 'pak02_dir.vpk', size: 2_411_724, mtime: Date.now() - 86_400_000 },
   ],
 }
+// what the real scan found on the developer's install, used for the browser preview
+const pk = (file: string, kind: PakKind, name: string, size: number, files: number): ScannedPak => ({ file, kind, name, size, files, enabled: true, label: kind, heroes: [], sample: [] })
+const MOCK_PAKS: ScannedPak[] = [
+  pk('pak01_dir.vpk', 'hud', 'HUD++ - HoppCX, jcStani', 5441219, 207),
+  pk('pak02_dir.vpk', 'effects', 'Particle Pruning (stock tracers and hits) - HoppCX, jcStani', 9535437, 4501),
+  pk('pak03_dir.vpk', 'unknown', 'Sound stack update cap - HoppCX', 24887, 3),
+  pk('pak04_dir.vpk', 'mixed', 'Brighter lighting - BreadRollius', 107862, 9),
+  pk('pak05_dir.vpk', 'hud', 'Flat health bars - jcStani', 60098, 3),
+  pk('pak06_dir.vpk', 'unknown', 'Thicker outlines (DX11)', 5029, 4),
+  pk('pak08_dir.vpk', 'map', 'Low detail map - jcStani', 35165632, 1092),
+  pk('pak09_dir.vpk', 'map', 'Low-poly troopers - aglow', 1756295, 119),
+  pk('pak10_dir.vpk', 'sound', "KovaaK's hit sounds - jcStani", 70855, 15),
+  pk('pak11_dir.vpk', 'sound', 'No music, low gun volume - jcStani', 106068, 8),
+  pk('pak13_dir.vpk', 'skin', 'Noir Haze skin', 8124000, 64),
+]
+let mockScan: Scan = { paks: MOCK_PAKS, leftovers: [{ file: 'addons/mods.txt', what: 'Load order list from another mod pack' }, { file: 'addons/.sigil.json', what: 'Settings of another mod manager' }, { file: 'gameinfo.gi.sigil.bak', what: 'gameinfo.gi backup from another tool' }], removed: [] }
 const wait = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), 260))
 
 const noop: Off = () => {}
@@ -88,6 +112,15 @@ const mockBridge: Bridge = {
     a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     return name
   },
+  scan: () => wait(mockScan),
+  quarantine: (rel) => {
+    const files = rel.filter((r) => mockScan.paks.some((p) => 'addons/' + p.file === r) || mockScan.leftovers.some((l) => l.file === r))
+    mockScan = { paks: mockScan.paks.filter((p) => !rel.includes('addons/' + p.file)), leftovers: mockScan.leftovers.filter((l) => !rel.includes(l.file)), removed: [{ id: String(Date.now()), when: Date.now(), files }, ...mockScan.removed] }
+    return wait(mockScan)
+  },
+  unremove: (id) => { mockScan = { ...mockScan, paks: [...mockScan.paks, ...MOCK_PAKS.filter((p) => mockScan.removed.find((r) => r.id === id)?.files.includes('addons/' + p.file))], removed: mockScan.removed.filter((r) => r.id !== id) }; return wait(mockScan) },
+  freshStart: () => wait(mock),
+  validate: async () => {},
   open: async (url) => { window.open(url, '_blank', 'noopener') },
   reveal: async () => {},
 }

@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('veil', {
   togglePak: (file: string) => call('pak:toggle', file),
   removePak: (file: string) => call('pak:remove', file),
   save: (name: string, data: Uint8Array) => call('file:save', name, data),
+  scan: () => call('game:scan'),
+  quarantine: (rel: string[]) => call('game:quarantine', rel),
+  unremove: (id: string) => call('game:unremove', id),
+  freshStart: () => call('game:fresh'),
+  validate: () => call('steam:validate'),
   open: (url: string) => call('open', url),
   reveal: () => call('reveal'),
 })

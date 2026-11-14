@@ -10,7 +10,7 @@ import { Seg, Slider, Switch, applyPack } from '../components/ui'
 import { api } from '../lib/api'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'bar', label: 'Bar' }, { id: 'colors', label: 'Colours' }, { id: 'number', label: 'Number' }, { id: 'stamina', label: 'Stamina' },
+  { id: 'bar', label: 'Bar' }, { id: 'colors', label: 'Colours' }, { id: 'number', label: 'Number' }, { id: 'stamina', label: 'Stamina' }, { id: 'ult', label: 'Ult' },
 { id: 'damage', label: 'Damage' }, { id: 'hero', label: 'Hero' }, { id: 'export', label: 'Apply' },
 ]
 const ENEMY = ['#f0524f', '#ff2d55', '#ff8a3d', '#f2c14e', '#e94cff', '#ffffff']
@@ -30,7 +30,7 @@ export default function Forge() {
       <ForgeScene hero={hero} sim={sim} tab={tab} barRef={barRef} dmgRef={dmgRef} />
       <div className="overhead" ref={dmgRef} aria-hidden><DamageNumbers sim={sim} /></div>
       <canvas
-        ref={barRef} className={`overhead bar ${['bar', 'colors', 'number', 'stamina'].includes(tab) ? 'editing' : ''}`}
+        ref={barRef} className={`overhead bar ${['bar', 'colors', 'number', 'stamina', 'ult'].includes(tab) ? 'editing' : ''}`}
         style={{ width: BAR_W, height: BAR_H }} onClick={() => setTab('bar')} title="Edit the bar" aria-label="Health bar preview"
       />
 
@@ -62,7 +62,7 @@ export default function Forge() {
         </footer>
       </section>
 
-      {['bar', 'colors', 'number', 'stamina'].includes(tab) && (
+      {['bar', 'colors', 'number', 'stamina', 'ult'].includes(tab) && (
         <div className="styles-strip" role="group" aria-label="Bar styles">
           {STYLES.map((st) => <StyleCard key={st.id} id={st.id} name={st.name} />)}
         </div>
@@ -134,6 +134,24 @@ function TabBody({ tab, heroes, failed }: { tab: Tab; heroes: ReturnType<typeof 
       <div className="toggle-row"><span>Stamina dots<small>Under the bar, one per charge</small></span><Switch checked={b.stamina} onChange={(stamina) => s.setBar({ stamina })} label="Stamina dots" /></div>
       <Slider label="Charges shown" value={b.staminaCount} min={1} max={5} onChange={(staminaCount) => s.setBar({ staminaCount })} />
       <div className="toggle-row"><span>Debuff icons<small>Right above the health number</small></span><Switch checked={b.debuffs} onChange={(debuffs) => s.setBar({ debuffs })} label="Debuff icons" /></div>
+    </>
+  )
+  if (tab === 'ult') return (
+    <>
+      <h3>Ult indicator</h3>
+      <p className="hint">Shows whether the hero has their ultimate ready. Watch it charge on the preview.</p>
+      <div className="toggle-row"><span>Show ult indicator</span><Switch checked={b.ult.show} onChange={(show) => s.setBar({ ult: { ...b.ult, show } })} label="Show ult indicator" /></div>
+      <div className="field"><div className="head"><span>Where</span></div>
+        <Seg label="Ult position" value={b.ult.pos} onChange={(pos) => s.setBar({ ult: { ...b.ult, pos } })} options={[{ id: 'left', label: 'Left' }, { id: 'right', label: 'Right' }, { id: 'above', label: 'Above' }, { id: 'below', label: 'Below' }]} />
+      </div>
+      <div className="field"><div className="head"><span>Look</span></div>
+        <Seg label="Ult style" value={b.ult.style} onChange={(style) => s.setBar({ ult: { ...b.ult, style } })} options={[{ id: 'icon', label: 'Diamond' }, { id: 'dot', label: 'Dot' }, { id: 'ring', label: 'Ring' }, { id: 'text', label: 'Text' }]} />
+      </div>
+      <Slider label="Size" value={b.ult.size} min={8} max={22} onChange={(size) => s.setBar({ ult: { ...b.ult, size } })} format={(v) => `${v} px`} />
+      <div className="field"><div className="head"><span>Colour when ready</span><b>{b.ult.color}</b></div>
+        <div className="colors">{['#f2c14e', '#5fe0c4', '#ffffff', '#b48cff', '#ff5a4f', '#2bd9ff'].map((v) => <button key={v} className="swatch" style={{ background: v }} aria-pressed={b.ult.color === v} onClick={() => s.setBar({ ult: { ...b.ult, color: v } })} aria-label={v} />)}<input type="color" value={b.ult.color} onChange={(e) => s.setBar({ ult: { ...b.ult, color: e.target.value } })} aria-label="Custom ult colour" /></div>
+      </div>
+      <p className="hint" style={{ margin: 0 }}>In game this needs the VEIL HUD pak, which is not built yet. Your design is saved for it.</p>
     </>
   )
   if (tab === 'damage') return (

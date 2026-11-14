@@ -127,6 +127,8 @@ export default function Crosshair() {
               <Slider label="Thickness" value={xh.lines.thickness} min={0.5} max={8} step={0.5} onChange={(thickness) => part('lines', { thickness })} />
             </div>
             <Slider label="Gap" value={xh.lines.gap} min={0} max={30} onChange={(gap) => part('lines', { gap })} />
+            <div className="toggle-row"><span>Own vertical length<small>Overlay only</small></span><Switch checked={xh.lines.lengthV !== null} onChange={(v) => part('lines', { lengthV: v ? xh.lines.length : null })} label="Own vertical length" /></div>
+            {xh.lines.lengthV !== null && <Slider label="Vertical length" value={xh.lines.lengthV} min={1} max={40} onChange={(lengthV) => part('lines', { lengthV })} />}
             <div className="chips">
               <button className={`chip ${xh.lines.rotate ? 'on' : ''}`} onClick={() => part('lines', { rotate: xh.lines.rotate ? 0 : 45 })}>Rotate 45°</button>
               <button className={`chip ${xh.lines.tShape ? 'on' : ''}`} onClick={() => part('lines', { tShape: !xh.lines.tShape })}>T-shape</button>
@@ -169,6 +171,7 @@ export default function Crosshair() {
               <Slider label="Width" value={xh.outline.width} min={0.5} max={3} step={0.5} onChange={(width) => part('outline', { width })} />
               <Slider label="Opacity" value={xh.outline.opacity} min={0.1} max={1} step={0.05} onChange={(opacity) => part('outline', { opacity })} format={(v) => `${Math.round(v * 100)}%`} />
             </div>
+            <div className="swatches">{['#000000', '#ffffff', '#d4a855', '#ff3b3b', '#00ffff'].map((c) => <button key={c} className="swatch sm" style={{ background: c }} aria-pressed={xh.outline.color === c} onClick={() => part('outline', { color: c })} aria-label={`Outline ${c}`} />)}<input type="color" value={xh.outline.color} onChange={(e) => part('outline', { color: e.target.value })} aria-label="Custom outline colour" /></div>
           </Section>
 
           <Section title="Glow" on={xh.glow.on} onToggle={(on) => part('glow', { on })} note="Overlay only">

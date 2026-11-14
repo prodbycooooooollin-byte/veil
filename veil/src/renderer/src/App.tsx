@@ -4,7 +4,9 @@ import { LayoutGrid, Layers, Wand2, Crosshair as CrossIcon, AudioLines, Terminal
 import { useStore, type Page } from './lib/store'
 import { api, isApp, type UpdateState } from './lib/api'
 import { Liquid } from './fx/Liquid'
-import { Dock, Toast } from './components/ui'
+import { Toast, Tween, pct, applyPack } from './components/ui'
+import { CrosshairSVG } from './components/CrosshairSVG'
+import { computePack } from './lib/store'
 import logo from './assets/logo.svg'
 import Lobby from './pages/Lobby'
 import Mods from './pages/Mods'
@@ -20,7 +22,7 @@ const NAV: { group: string | null; items: NavItem[] }[] = [
   { group: null, items: [{ id: 'lobby', label: 'Home', icon: LayoutGrid }] },
   { group: 'Performance', items: [{ id: 'mods', label: 'Mods', icon: Layers }, { id: 'console', label: 'Console', icon: TerminalSquare }] },
   { group: 'Look and feel', items: [{ id: 'forge', label: 'Forge', icon: Wand2 }, { id: 'crosshair', label: 'Crosshair', icon: CrossIcon }, { id: 'sound', label: 'Hit sounds', icon: AudioLines }] },
-  { group: 'Game', items: [{ id: 'install', label: 'Install', icon: HardDriveDownload }] },
+  { group: 'Game', items: [{ id: 'install', label: 'Game', icon: HardDriveDownload }] },
 ]
 const PAGES = { lobby: Lobby, mods: Mods, forge: Forge, crosshair: Crosshair, sound: Sound, console: Console, install: Install }
 
@@ -38,7 +40,6 @@ export default function App() {
   useEffect(() => api.onUpdate(setUpd), [])
 
   const P = PAGES[page] ?? Lobby
-  const dock = page === 'mods' || page === 'console'
 
   return (
     <>
@@ -46,7 +47,6 @@ export default function App() {
       <div className="grain" aria-hidden />
       <div className="app">
         <header className="topbar">
-          <div className="brand"><img src={logo} alt="" width={20} height={20} /><b>VEIL</b></div>
           <div className="spacer" />
           <UpdatePill u={upd} />
           <button className="status" onClick={() => set({ page: 'install' })}>
@@ -61,6 +61,7 @@ export default function App() {
         </header>
 
         <nav className="side" aria-label="Sections">
+          <div className="side-brand"><img src={logo} alt="" width={30} height={30} /><div><b>VEIL</b><span>for Deadlock</span></div></div>
           {NAV.map((g, gi) => (
             <div className="side-group" key={gi}>
               {g.group && <div className="side-label">{g.group}</div>}
@@ -68,12 +69,14 @@ export default function App() {
                 <button key={id} className={`side-item ${page === id ? 'on' : ''}`} onClick={() => set({ page: id })} aria-current={page === id ? 'page' : undefined}>
                   {page === id && <motion.span layoutId="side-active" className="side-active" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
                   <I size={17} strokeWidth={1.8} />
-                  <span>{label}</span>
+                  <span className="side-name">{label}</span>
+                  <SideHint id={id} />
                 </button>
               ))}
             </div>
           ))}
           <div className="grow" />
+          <PackCard />
           <div className="side-foot">
             <span>VEIL {version}</span>
             <button onClick={() => api.checkUpdate().then((r) => r && setUpd(r))} title="Check for updates" aria-label="Check for updates"><RotateCw size={13} /></button>
@@ -90,7 +93,6 @@ export default function App() {
               <Suspense fallback={null}><P /></Suspense>
             </motion.div>
           </AnimatePresence>
-          {dock && <Dock />}
         </main>
       </div>
       <Toast />
@@ -115,5 +117,30 @@ function UpdatePill({ u }: { u: UpdateState }) {
         </motion.button>
       )}
     </AnimatePresence>
+  )
+}
+
+/** The live state each section is in, shown right in the sidebar. */
+function SideHint({ id }: { id: Page }) {
+  const s = useStore()
+  if (id === 'mods') return <span className="hint gain"><Tween value={computePack(s).gain.avg} format={pct} /></span>
+  if (id === 'crosshair') return <span className="hint xh"><CrosshairSVG s={s.xh} zoom={0.75} animate={false} /></span>
+  if (id === 'forge') return <span className="hint bar"><i style={{ background: s.side === 'enemy' ? s.bar.enemy : s.bar.ally }} /></span>
+  if (id === 'sound') return <span className="hint wave">{[5, 9, 6, 11, 4, 7, 3].map((h, i) => <i key={i} style={{ height: h }} />)}</span>
+  if (id === 'console') { const n = Object.keys(s.custom).length; return n ? <span className="hint count">{n}</span> : null }
+  if (id === 'install') return <span className={`hint dot ${s.status?.found ? 'ok' : 'bad'}`} />
+  return null
+}
+
+function PackCard() {
+  const s = useStore()
+  const p = computePack(s)
+  return (
+    <div className="pack-card">
+      <div className="pc-top"><span>Your pack</span><span className="faint">{p.items.length} mods</span></div>
+      <div className="pc-fig"><Tween value={p.gain.avg} format={pct} /><small>avg FPS</small></div>
+      <div className="pc-meter"><i style={{ width: `${Math.min(100, p.gain.avg / 0.7)}%` }} /></div>
+      <button className="btn brass" onClick={applyPack} disabled={!s.status?.found}>Apply to Deadlock</button>
+    </div>
   )
 }

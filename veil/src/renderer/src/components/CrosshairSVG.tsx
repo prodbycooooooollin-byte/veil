@@ -7,7 +7,7 @@ export function CrosshairSVG({ s, zoom = 1, animate = true }: { s: XSpec; zoom?:
   const k = s.scale * zoom
   const L = s.lines, o = s.outline
   const extent = Math.max(
-    L.on ? L.gap + L.length : 0, s.dot.on ? s.dot.size : 0, s.ring.on ? s.ring.radius + s.ring.thickness : 0,
+    L.on ? L.gap + Math.max(L.length, L.lengthV ?? 0) : 0, s.dot.on ? s.dot.size : 0, s.ring.on ? s.ring.radius + s.ring.thickness : 0,
     s.brackets.on ? s.brackets.gap + s.brackets.size : 0, s.chevron.on ? s.chevron.offset + s.chevron.size : 0, 4,
   ) + (s.glow.on ? s.glow.size * 2 : 0) + 4
   const size = extent * 2 * k
@@ -17,9 +17,10 @@ export function CrosshairSVG({ s, zoom = 1, animate = true }: { s: XSpec; zoom?:
 
   const lineEls = L.on ? [0, 90, 180, 270].filter((a) => !(L.tShape && a === 270)).map((a) => {
     const ang = a + L.rotate
+    const len = (a === 90 || a === 270) && L.lengthV !== null ? L.lengthV : L.length
     const shape = L.taper
-      ? <polygon points={`${L.gap},${-L.thickness * 0.18} ${L.gap + L.length},${-L.thickness / 2} ${L.gap + L.length},${L.thickness / 2} ${L.gap},${L.thickness * 0.18}`} />
-      : <rect x={L.gap} y={-L.thickness / 2} width={L.length} height={L.thickness} rx={L.round ? L.thickness / 2 : 0} />
+      ? <polygon points={`${L.gap},${-L.thickness * 0.18} ${L.gap + len},${-L.thickness / 2} ${L.gap + len},${L.thickness / 2} ${L.gap},${L.thickness * 0.18}`} />
+      : <rect x={L.gap} y={-L.thickness / 2} width={len} height={L.thickness} rx={L.round ? L.thickness / 2 : 0} />
     return <g key={a} transform={`rotate(${ang})`}>{shape}</g>
   }) : null
 

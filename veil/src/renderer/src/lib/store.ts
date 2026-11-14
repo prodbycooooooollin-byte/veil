@@ -22,6 +22,7 @@ export type Bar = {
   staminaCount: number
   debuffs: boolean
   glow: boolean
+  ult: { show: boolean; pos: 'left' | 'right' | 'above' | 'below'; style: 'dot' | 'ring' | 'icon' | 'text'; color: string; size: number }
 }
 export type Crosshair = { r: number; g: number; b: number; gap: number; width: number; height: number; opacity: number; outline: number; dot: number; dotOpacity: number; heroReticles: boolean; hitMarker: number }
 
@@ -55,6 +56,7 @@ type State = {
 export const DEFAULT_BAR: Bar = {
   style: 'flat', width: 120, height: 10, enemy: '#f0524f', ally: '#5fe0c4', back: '#0d0d0f', showNumber: true, numberSize: 15,
   numberPos: 'above', stamina: true, staminaCount: 3, debuffs: true, glow: true,
+  ult: { show: true, pos: 'right', style: 'icon', color: '#f2c14e', size: 12 },
 }
 export const DEFAULT_CROSS: Crosshair = { r: 255, g: 255, b: 255, gap: 4, width: 2, height: 16, opacity: 0.5, outline: 0.7, dot: 4, dotOpacity: 0.7, heroReticles: true, hitMarker: 0.1 }
 
@@ -85,7 +87,7 @@ export const useStore = create<State>()(
       set: (p) => set(p),
       toggle: (id) => { if (!byId[id]?.locked) set({ on: { ...get().on, [id]: !get().on[id] } }) },
       pick: (id, o) => set({ opt: { ...get().opt, [id]: o }, on: { ...get().on, [id]: true } }),
-      setBar: (p) => set({ bar: { ...get().bar, ...p } }),
+      setBar: (p) => set({ bar: { ...DEFAULT_BAR, ...get().bar, ...p } }),
       setCross: (p) => set({ cross: { ...get().cross, ...p } }),
       setXh: (p) => set({ xh: { ...get().xh, ...p } }),
       setCustom: (name, value) => {
@@ -103,8 +105,8 @@ export const useStore = create<State>()(
     {
       name: 'veil',
       partialize: ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom }) => ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom }),
-      version: 2,
-      migrate: (old: any) => ({ ...old, page: old?.page === 'forge' ? 'forge' : 'lobby' }),
+      version: 3,
+      migrate: (old: any) => ({ ...old, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),
     },
   ),
 )
