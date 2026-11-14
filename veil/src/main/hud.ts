@@ -45,6 +45,8 @@ export function hudCss(b: HudBar): string {
       width: px(W), height: px(H), 'margin-top': px(top), 'margin-left': px(left), 'horizontal-align': 'center', 'vertical-align': 'top',
       'opacity-mask': 'url("s2r://panorama/images/masks/no_mask_png.vtex")', 'background-color': 'transparent', 'pre-transform-scale2d': '1',
     })
+    // the stock critical-health state shifts the bar; keep it where the design puts it
+    rule('.player.health_critical .ShowCriticalState .UnitHealthbarContainer,.player .health_critical .ShowCriticalState .UnitHealthbarContainer,.health_critical .player .ShowCriticalState .UnitHealthbarContainer', { 'margin-left': px(left) })
     rule('.player #UnitHealthbarInner', {
       width: px(W), height: px(H), margin: '0px', 'opacity-mask': 'url("s2r://panorama/images/masks/no_mask_png.vtex")',
       'background-color': b.style === 'outline' || b.style === 'minimal' ? 'transparent' : b.back,
@@ -59,14 +61,25 @@ export function hudCss(b: HudBar): string {
     if (b.style === 'block') rule('.player #UnitHealthbarLines .line_large,.player #UnitHealthbarLines .line_small', { 'background-color': b.back, height: px(H), width: '2px' })
     rule('.player #unit_healthbar_missing', { 'background-image': 'none', 'background-color': 'transparent' })
     rule('.player #unit_healthbar_lagging,.player #unit_healthbar_delta,.player #unit_healthbar_healing,.player #unit_healthbar_deferred', { 'background-image': 'none', 'background-color': '#FFFFFF' })
-    rule('.player #unit_healthbar_lagging', { 'animation-name': 'none', 'border-radius': px(radius) })
+    rule('.player #unit_healthbar_lagging', { 'animation-name': 'none' })
+    // The bar is a row of segments: current health (lagging), health just lost (delta), healing and
+    // deferred damage. Each needs its own colour, and delta must stay hidden except while you are
+    // dealing damage, or it covers the lost part and the bar looks like it never drops.
+    rule('.player #unit_healthbar_healing', { 'wash-color': '#5FFF80' })
+    rule('.player #unit_healthbar_deferred', { 'wash-color': '#E87F3D' })
+    rule('.player #unit_healthbar_delta', { 'wash-color': '#F3EAD9', opacity: '0' })
+    rule([team('enemy', '#unit_healthbar_delta'), team('friend', '#unit_healthbar_delta')].join(','), { 'wash-color': '#F3EAD9' })
+    rule('.player .active_damage_by_local_player #unit_healthbar_delta,.active_damage_by_local_player .player #unit_healthbar_delta,.player.active_damage_by_local_player #unit_healthbar_delta', { opacity: '1' })
+    rule('.player #unit_healthbar_bullet_shield', { 'background-color': '#38D9EC', 'box-shadow': 'none' })
+    rule('.player #unit_healthbar_ratking_armor', { 'background-color': '#C7A674' })
+    // glow goes on the bar's frame, never on the moving segments
+    if (b.style === 'neon' || b.glow) {
+      rule(team('enemy', '#UnitHealthbarInner'), { 'box-shadow': `${b.enemy}88 0px 0px ${b.style === 'neon' ? 6 : 3}px 0px` })
+      rule(team('friend', '#UnitHealthbarInner'), { 'box-shadow': `${b.ally}88 0px 0px ${b.style === 'neon' ? 6 : 3}px 0px` })
+    }
   }
   rule(team('enemy', '#unit_healthbar_lagging'), { 'wash-color': b.enemy })
   rule(team('friend', '#unit_healthbar_lagging'), { 'wash-color': b.ally })
-  if (b.style === 'neon' || (b.glow && b.style !== 'classic')) {
-    rule(team('enemy', '#unit_healthbar_lagging'), { 'box-shadow': `${b.enemy}aa 0px 0px ${b.style === 'neon' ? 6 : 3}px 0px` })
-    rule(team('friend', '#unit_healthbar_lagging'), { 'box-shadow': `${b.ally}aa 0px 0px ${b.style === 'neon' ? 6 : 3}px 0px` })
-  }
 
   // health number
   if (!b.showNumber) rule('.player #UnitHealthbarValue', { visibility: 'collapse' })

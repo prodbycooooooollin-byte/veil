@@ -90,7 +90,17 @@ export const useStore = create<State>()(
       status: null,
       toast: null,
       set: (p) => set(p),
-      toggle: (id) => { if (!byId[id]?.locked) set({ on: { ...get().on, [id]: !get().on[id] } }) },
+      toggle: (id) => {
+        const m = byId[id]
+        if (!m || m.locked) return
+        const next = !get().on[id]
+        const on = { ...get().on, [id]: next }
+        // switching one on switches off the mods that replace the same file
+        const off = next ? (m.excludes ?? []).filter((x) => on[x]) : []
+        for (const x of off) on[x] = false
+        set({ on })
+        if (off.length) get().say(`${m.name} and ${off.map((x) => byId[x].name).join(', ')} change the same file, so ${off.map((x) => byId[x].name).join(', ')} is now off.`)
+      },
       pick: (id, o) => set({ opt: { ...get().opt, [id]: o }, on: { ...get().on, [id]: true } }),
       setBar: (p) => set({ bar: { ...DEFAULT_BAR, ...get().bar, ...p } }),
       setCross: (p) => set({ cross: { ...get().cross, ...p } }),
@@ -123,6 +133,24 @@ const fmtNum =(n: number) => String(Math.round(n * 1000) / 1000)
 /** Everything the current choices add up to: what gets written, and the estimated gain of the measured parts. */
 /** Whether an external (CompLock) mod's pak is actually in the game, from the last scan. */
 export const isInstalled = (m: { match?: string }, installed: string[]) => !!m.match && installed.some((n) => n.toLowerCase().includes(m.match!.toLowerCase()))
+/** A mod can be used unless it needs a CompLock file (pak or gameinfo.gi) that isn't in the game. */
+export const available = (m: { source: string; pak?: boolean; gameinfo?: boolean; match?: string; cl?: unknown }, installed: string[]) =>
+  !(m.source === 'complock' && m.pak && !m.cl) || isInstalled(m, installed)
+
+/** The CompLock pack files the current choices need. */
+export function clWanted(s: Pick<State, 'on' | 'opt'>): string[] {
+  const out: string[] = []
+  for (const m of MODS) {
+    if (!s.on[m.id] || !m.cl) continue
+    if (typeof m.cl === 'string') out.push(m.cl)
+    else {
+      const o = s.opt[m.id] ?? m.options?.[0]?.id ?? ''
+      const f = m.cl[o] ?? Object.values(m.cl)[0]
+      if (f) out.push(f)
+    }
+  }
+  return out
+}
 
 export function computePack(s: Pick<State, 'on' | 'opt' | 'cross' | 'xh' | 'bar' | 'damageMode' | 'verticalBars' | 'custom'> & { installed?: string[] }) {
   const convars: Record<string, string> = {}
@@ -133,7 +161,8 @@ export function computePack(s: Pick<State, 'on' | 'opt' | 'cross' | 'xh' | 'bar'
     if (!s.on[m.id]) continue
     const o = m.options?.find((x) => x.id === s.opt[m.id]) ?? m.options?.[0]
     // measured gains only count for external paks that are really installed
-    const live = m.source !== 'complock' || isInstalled(m, s.installed ?? [])
+    const live = available(m, s.installed ?? [])
+    if (!live) continue // its file isn't in the game, so neither its values nor its gain apply
     const g = live ? (o?.gain ?? m.gain) : undefined
     if (m.id === 'hudpp' && live) {
       // HUD++ itself, plus the measured effect of the chosen damage number mode

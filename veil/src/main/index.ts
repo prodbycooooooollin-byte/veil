@@ -2,8 +2,10 @@ import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, shell } fr
 import { autoUpdater } from 'electron-updater'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
 import * as dl from './deadlock'
 import { buildHudPak, hudCss, type HudBar } from './hud'
+import * as cl from './complock'
 
 let win: BrowserWindow | null = null
 let overlay: BrowserWindow | null = null
@@ -162,6 +164,41 @@ ipcMain.handle('hud:install', async (_e, bar: HudBar) => {
 })
 ipcMain.handle('hud:remove', async () => { const g = need(); await dl.removeVeilPak(g, 'hud'); return dl.status(g) })
 ipcMain.handle('hud:css', (_e, bar: HudBar) => hudCss(bar))
+/**
+ * Makes the installed CompLock paks match the wanted list: downloads what is missing, removes what VEIL
+ * installed earlier and is no longer wanted, and puts CompLock's gameinfo.gi in place or takes it out.
+ */
+ipcMain.handle('cl:sync', async (_e, wanted: string[], wantGameinfo: boolean) => {
+  const g = need()
+  const have = await dl.veilManaged(g)
+  const send = (p: unknown) => win?.webContents.send('cl:progress', p)
+  const m = await cl.manifest()
+  for (const key of Object.keys(have).filter((k) => k.startsWith('cl:') && k !== 'cl:gameinfo')) {
+    if (!wanted.includes(key.slice(3))) await dl.removeVeilPak(g, key)
+  }
+  const installed: string[] = []
+  for (const key of wanted) {
+    // skip only if VEIL's copy is really still there (Steam's file check or a clean-up can remove it)
+    const prev = have['cl:' + key]
+    if (typeof prev === 'string' && existsSync(join(g, 'game', 'citadel', 'addons', prev))) { installed.push(key); continue }
+    const title = m.files[key]?.title ?? key
+    send({ title, done: 0, total: m.files[key]?.parts[0]?.csize ?? 0 })
+    const data = await cl.downloadPak(key, (done, total) => send({ title, done, total }))
+    await dl.installBufferAs(g, 'cl:' + key, data)
+    installed.push(key)
+  }
+  // written on every apply: a game update replaces gameinfo.gi with the stock one
+  if (wantGameinfo) {
+    await dl.installGameinfoText(g, m.gameinfo)
+    await dl.setManaged(g, 'cl:gameinfo', 'gameinfo.gi')
+  } else if (!wantGameinfo && have['cl:gameinfo']) {
+    await dl.restore(g)
+    await dl.setManaged(g, 'cl:gameinfo', null)
+  }
+  send(null)
+  return { installed, game: m.game }
+})
+ipcMain.handle('veil:managed', async () => (gamePath ? dl.veilManaged(gamePath) : {}))
 ipcMain.handle('game:scan', async () => dl.scan(need()))
 ipcMain.handle('game:quarantine', async (_e, rel: string[]) => { const g = need(); await dl.quarantine(g, rel); return dl.scan(g) })
 ipcMain.handle('game:unremove', async (_e, id: string) => { const g = need(); await dl.restoreRemoved(g, id); return dl.scan(g) })

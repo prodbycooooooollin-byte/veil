@@ -106,6 +106,7 @@ function readManaged(text: string): Record<string, string> {
 
 export async function status(game: string | null): Promise<GameStatus> {
   if (!game || !isGameDir(game)) return { found: false, gamePath: game, addonsSearchPath: false, managedConvars: {}, backup: false, paks: [] }
+  await readManifest(game) // moves an old manifest out of addons
   const gi = await readFile(gameinfoPath(game), 'utf8')
   const paks: GameStatus['paks'] = []
   if (existsSync(addonsDir(game))) {
@@ -250,6 +251,8 @@ export async function scan(game: string): Promise<{ paks: ScannedPak[]; leftover
         const s = await stat(full)
         const info = await inspect(full)
         paks.push({ ...info, file: f, size: s.size, enabled: !f.endsWith('.off'), veil: / - VEIL$/.test(info.name ?? '') })
+      } else if (f === '.veil.json') {
+        // an old VEIL manifest; readManifest moves it out of addons on the next install
       } else if (/^(mods\.txt|\.sigil\.json|\.sigil_disabled|modinfo\.json|.*\.json)$/i.test(f) || f.startsWith('.sigil')) {
         leftovers.push({ file: `addons/${f}`, what: f === 'mods.txt' ? 'Load order list from another mod pack' : 'Settings of another mod manager' })
       }
@@ -321,9 +324,25 @@ export async function prepareFreshStart(game: string): Promise<RemovedSet> {
 }
 
 /* ---------- VEIL's own paks ---------- */
-const manifestPath = (game: string) => join(addonsDir(game), '.veil.json')
-async function readManifest(game: string): Promise<Record<string, string>> {
+// VEIL's list of the paks it installed. It lives next to addons, not in it: Deadlock lists every file
+// in addons as an addon, so a manifest there shows up in the game.
+const manifestPath = (game: string) => join(citadel(game), '.veil.json')
+type Manifest = Record<string, string | string[]>
+async function readManifest(game: string): Promise<Manifest> {
+  const old = join(addonsDir(game), '.veil.json')
+  if (existsSync(old)) {
+    if (!existsSync(manifestPath(game))) await rename(old, manifestPath(game))
+    else await unlink(old)
+  }
   try { return JSON.parse(await readFile(manifestPath(game), 'utf8')) } catch { return {} }
+}
+async function freeSlot(game: string): Promise<string> {
+  const taken = new Set((await readdir(addonsDir(game))).map((f) => f.toLowerCase().replace(/\.off$/, '')))
+  for (let n = 1; n < 100; n++) {
+    const c = `pak${String(n).padStart(2, '0')}_dir.vpk`
+    if (!taken.has(c)) return c
+  }
+  throw new Error('All 99 pak slots in the addons folder are used.')
 }
 
 /**
@@ -334,15 +353,11 @@ export async function installVeilPak(game: string, id: string, data: Buffer): Pr
   const dir = addonsDir(game)
   await mkdir(dir, { recursive: true })
   const m = await readManifest(game)
-  let name = m[id] && existsSync(join(dir, m[id])) ? m[id] : undefined
-  if (!name) {
-    const taken = new Set((await readdir(dir)).map((f) => f.toLowerCase().replace(/\.off$/, '')))
-    for (let n = 1; n < 100 && !name; n++) {
-      const c = `pak${String(n).padStart(2, '0')}_dir.vpk`
-      if (!taken.has(c)) name = c
-    }
-  }
-  if (!name) throw new Error('All 99 pak slots in the addons folder are used.')
+  const prev = m[id]
+  // reuse the previous slot only if it is still ours and no other installed mod has taken it
+  const claimed = Object.entries(m).filter(([k]) => k !== id).flatMap(([, v]) => ([] as string[]).concat(v))
+  let name = typeof prev === 'string' && existsSync(join(dir, prev)) && !claimed.includes(prev) ? prev : undefined
+  name ??= await freeSlot(game)
   await writeFile(join(dir, name), data)
   m[id] = name
   await writeFile(manifestPath(game), JSON.stringify(m, null, 2))
@@ -351,7 +366,30 @@ export async function installVeilPak(game: string, id: string, data: Buffer): Pr
 
 export async function removeVeilPak(game: string, id: string): Promise<void> {
   const m = await readManifest(game)
-  if (m[id] && existsSync(join(addonsDir(game), m[id]))) await unlink(join(addonsDir(game), m[id]))
+  const files = ([] as string[]).concat(m[id] ?? [])
+  for (const f of files) if (existsSync(join(addonsDir(game), f))) await unlink(join(addonsDir(game), f))
   delete m[id]
+  await writeFile(manifestPath(game), JSON.stringify(m, null, 2))
+}
+
+export async function veilManaged(game: string): Promise<Manifest> { return readManifest(game) }
+
+/** Writes downloaded pak bytes into addons under \`key\`, reusing that key's previous slot. */
+export async function installBufferAs(game: string, key: string, data: Buffer): Promise<string> {
+  return installVeilPak(game, key, data)
+}
+
+/** Replaces gameinfo.gi with the given text (e.g. CompLock's), keeping the original as the backup. */
+export async function installGameinfoText(game: string, text: string): Promise<void> {
+  const file = gameinfoPath(game)
+  if (!block(text, 'GameInfo')) throw new Error('The downloaded gameinfo.gi is not valid.')
+  if (!existsSync(file + BACKUP_SUFFIX)) await copyFile(file, file + BACKUP_SUFFIX)
+  await writeFile(file, text, 'utf8')
+}
+
+export async function setManaged(game: string, key: string, value: string | string[] | null): Promise<void> {
+  const m = await readManifest(game)
+  if (value === null) delete m[key]
+  else m[key] = value
   await writeFile(manifestPath(game), JSON.stringify(m, null, 2))
 }

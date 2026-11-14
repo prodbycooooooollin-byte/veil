@@ -40,6 +40,9 @@ type Bridge = {
   installHud(bar: unknown): Promise<string>
   removeHud(): Promise<GameStatus>
   hudCss(bar: unknown): Promise<string>
+  clSync(wanted: string[], gameinfo: boolean): Promise<{ installed: string[]; game: string }>
+  onClProgress(fn: (p: { title: string; done: number; total: number } | null) => void): Off
+  managed(): Promise<Record<string, string | string[]>>
   scan(): Promise<Scan>
   quarantine(rel: string[]): Promise<Scan>
   unremove(id: string): Promise<Scan>
@@ -118,6 +121,9 @@ const mockBridge: Bridge = {
   installHud: async () => 'pak01_dir.vpk',
   removeHud: () => wait(mock),
   hudCss: async () => '/* browser preview: the CSS is built in the app */',
+  clSync: async (wanted) => { await new Promise((r) => setTimeout(r, 700)); return { installed: wanted, game: '6860' } },
+  onClProgress: () => noop,
+  managed: async () => ({}),
   scan: () => wait(mockScan),
   quarantine: (rel) => {
     const files = rel.filter((r) => mockScan.paks.some((p) => 'addons/' + p.file === r) || mockScan.leftovers.some((l) => l.file === r))

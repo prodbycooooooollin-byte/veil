@@ -38,9 +38,6 @@ export default function Settings() {
         <Row label="Open on" hint="The page VEIL shows when it starts.">
           <Seg label="Open on" value={s.prefs.startPage} onChange={(startPage) => s.set({ prefs: { ...s.prefs, startPage } })} options={[{ id: 'home', label: 'Home' }, { id: 'last', label: 'Last page' }]} />
         </Row>
-        <Row label="Animated background" hint="The moving light on the Home page.">
-          <Switch checked={s.prefs.background} onChange={(background) => s.set({ prefs: { ...s.prefs, background } })} label="Animated background" />
-        </Row>
         <Row label="Reduce motion" hint="Turns off transitions and moving effects everywhere.">
           <Switch checked={s.prefs.reduceMotion} onChange={(reduceMotion) => s.set({ prefs: { ...s.prefs, reduceMotion } })} label="Reduce motion" />
         </Row>

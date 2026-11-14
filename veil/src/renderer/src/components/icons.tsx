@@ -15,6 +15,8 @@ const wrap = (C: P.Icon, weight: IconWeight = WEIGHT) => {
 
 export const AlertTriangle = wrap(P.Warning)
 export const ArrowRight = wrap(P.ArrowRight, 'bold')
+export const ArrowUpRight = wrap(P.ArrowUpRight, 'bold')
+export const Star = wrap(P.Star, 'fill')
 export const AudioLines = wrap(P.Waveform)
 export const Box = wrap(P.Cube)
 export const Check = wrap(P.Check, 'bold')

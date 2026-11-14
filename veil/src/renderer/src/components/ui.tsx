@@ -2,7 +2,7 @@ import * as RSlider from '@radix-ui/react-slider'
 import * as RSwitch from '@radix-ui/react-switch'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { animate, useMotionValue, useTransform } from 'motion/react'
-import { useStore, computePack } from '../lib/store'
+import { useStore, computePack, clWanted } from '../lib/store'
 import { api } from '../lib/api'
 import { Check, X } from './icons'
 import { AnimatePresence, motion } from 'motion/react'
@@ -42,6 +42,11 @@ export function Seg<T extends string>({ value, options, onChange, label, size }:
   )
 }
 
+/** The tab cut into the top edge of a panel, carrying the wordmark. */
+export function Notch({ label = 'VEIL' }: { label?: string }) {
+  return <div className="notch" aria-hidden><span>{label}</span></div>
+}
+
 export function PageHead({ title, sub, actions }: { title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="page-head">
@@ -76,6 +81,13 @@ export async function applyPack() {
   const s = useStore.getState()
   const p = computePack(s)
   try {
+    // 1. CompLock files: download what's on, remove what VEIL installed and is now off
+    const wanted = clWanted(s)
+    if (wanted.length || s.on.gameinfo !== undefined) {
+      const off = api.onClProgress((pr) => { if (pr) s.say(`Downloading ${pr.title} from deadlockconfig.com ${pr.total ? Math.round((pr.done / pr.total) * 100) + '%' : ''}`) })
+      try { await api.clSync(wanted, !!s.on.gameinfo) } finally { off() }
+    }
+    // 2. engine and console values, written on top of whichever gameinfo.gi is now in place
     const status = await api.apply(p.convars, p.autoexec)
     let pakNote = ''
     if (s.on.veilhud) pakNote = ` VEIL HUD installed as ${(await api.installHud(s.bar)).replace('_dir.vpk', '')}.`
@@ -83,7 +95,8 @@ export async function applyPack() {
     s.set({ status })
     const scan = await api.scan().catch(() => null)
     if (scan) s.set({ installed: scan.paks.filter((p) => p.enabled).map((p) => p.name ?? '') })
-    s.say(`Applied: ${Object.keys(p.convars).length} engine and ${Object.keys(p.autoexec).length} console values.${pakNote} Restart Deadlock.`)
+    const cls = clWanted(s).length
+    s.say(`Applied: ${cls ? `${cls} CompLock pak${cls > 1 ? 's' : ''}, ` : ''}${Object.keys(p.convars).length} engine and ${Object.keys(p.autoexec).length} console values.${pakNote} Restart Deadlock.`)
   } catch (e) {
     s.say(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'bad')
   }

@@ -26,10 +26,10 @@ export function HeroStage({ hero }: { hero?: Hero }) {
     <Boundary fallback={fallback} resetKey={hero.id}>
       {ready !== hero.id && <div className="hero-loading">Loading {hero.name}</div>}
       <Canvas onCreated={(st) => st.camera.lookAt(0, 1.02, 0)} dpr={[1, 1.75]} camera={{ position: [0, 1.2, 4.6], fov: 30 }} gl={{ antialias: true, alpha: true }} shadows style={{ position: 'absolute', inset: 0 }}>
-        <ambientLight intensity={0.9} />
-        <directionalLight position={[2.5, 4, 3]} intensity={2.6} color="#f3ead9" castShadow />
-        <directionalLight position={[-3, 2, -2]} intensity={3.2} color={hero.color} />
-        <pointLight position={[2.4, 0.8, -1.5]} intensity={22} distance={8} color="#5fe0c4" />
+        <ambientLight intensity={0.28} />
+        <spotLight position={[0.6, 6, 3]} angle={0.42} penumbra={0.85} intensity={90} color="#ffffff" castShadow />
+        <directionalLight position={[-3, 2, -2.5]} intensity={4.2} color="#ffffff" />
+        <pointLight position={[2.4, 0.8, -1.5]} intensity={14} distance={8} color={hero.color} />
         <Suspense fallback={null}>
           <StudioEnv color={hero.color} />
           <group position={[0, -0.02, 0]}>

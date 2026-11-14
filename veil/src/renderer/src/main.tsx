@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+import './v5.css'
 import App from './App'
 import Overlay from './pages/Overlay'
 

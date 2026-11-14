@@ -1,103 +1,119 @@
 import { useEffect, useRef, useState, type PointerEvent as RPE } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronsLeftRight, Download, FileInput, ExternalLink, Lock } from '../components/icons'
+import { ChevronsLeftRight, Lock, ArrowUpRight } from '../components/icons'
 import { MODS, GROUPS, byId, COMPLOCK_URL, type Mod } from '../data/mods'
-import { useStore, isInstalled } from '../lib/store'
+import { useStore, isInstalled, computePack } from '../lib/store'
 import { api } from '../lib/api'
-import { GainText, PageHead, Switch, pct } from '../components/ui'
+import { GainText, Switch, Tween, pct, Notch } from '../components/ui'
 
 const ORDER: Mod['group'][] = ['hud', 'engine', 'effects', 'visibility', 'tweaks']
 
+/**
+ * The config: every setting VEIL can write, as switches. Left the list, middle the selected setting
+ * shown big, right what it does and what it is worth.
+ */
 export default function Mods() {
   const [sel, setSel] = useState('particles')
-  const on = useStore((s) => s.on)
-  const toggle = useStore((s) => s.toggle)
-  const installed = useStore((s) => s.installed)
-  const set = useStore((s) => s.set)
+  const s = useStore()
+  const set = s.set
   useEffect(() => { api.scan().then((r) => set({ installed: r.paks.filter((q) => q.enabled).map((q) => q.name ?? '') })).catch(() => {}) }, [set])
   const m = byId[sel]
+  const onCount = MODS.filter((x) => s.on[x.id]).length
+  const pack = computePack(s)
 
   return (
-    <div className="mods">
-      <aside className="mods-list">
-        <PageHead title="Mods" sub="Every CompLock mod and VEIL tweak. Turn them on, then apply once." />
-        {ORDER.map((g) => (
-          <section key={g}>
-            <div className="group-h"><b>{GROUPS[g].name}</b><span>{MODS.filter((x) => x.group === g && on[x.id]).length} of {MODS.filter((x) => x.group === g).length} on</span></div>
-            {MODS.filter((x) => x.group === g).map((x) => (
-              <div key={x.id} role="button" tabIndex={0} className={`mod-row ${sel === x.id ? 'sel' : ''}`} onClick={() => setSel(x.id)} onKeyDown={(e) => e.key === 'Enter' && setSel(x.id)}>
-                <span className="t">{x.name}{x.source === 'veil' ? <span className="tag veil">VEIL</span> : isInstalled(x, installed) ? <span className="tag ok">Installed</span> : <span className="tag ext">External</span>}</span>
-                {x.locked ? <Lock size={14} className="faint" aria-label="Always on" /> : <Switch checked={!!on[x.id]} onChange={() => toggle(x.id)} label={`Use ${x.name}`} />}
-                <span className="s">{x.blurb}</span>
-                <span className="g">{x.gain ? <GainText v={x.gain.avg} /> : x.impact ? <Impact level={x.impact} /> : null}</span>
-              </div>
-            ))}
-          </section>
-        ))}
+    <div className="cfg">
+      <aside className="cfg-list">
+        <header className="cfg-head">
+          <h1 className="h-wide">Your config</h1>
+          <div className="cfg-sum"><span><b>{onCount}</b> of {MODS.length} on</span><span className="gain"><Tween value={pack.gain.avg} format={pct} /> FPS</span></div>
+        </header>
+        <div className="cfg-scroll">
+          {ORDER.map((g) => {
+            const items = MODS.filter((x) => x.group === g)
+            if (!items.length) return null
+            return (
+              <section key={g}>
+                <div className="cfg-group"><b>{GROUPS[g].name}</b><span>{items.filter((x) => s.on[x.id]).length}/{items.length}</span></div>
+                {items.map((x) => (
+                  <div key={x.id} role="button" tabIndex={0} className={`cfg-row ${sel === x.id ? 'sel' : ''} ${s.on[x.id] ? 'on' : ''}`} onClick={() => setSel(x.id)} onKeyDown={(e) => e.key === 'Enter' && setSel(x.id)}>
+                    <span className="t">{x.name}</span>
+                    <span className="s">{x.source === 'veil' ? 'VEIL' : x.source === 'complock' ? `CompLock${x.author ? ' · ' + x.author : ''}` : 'Tweak'}{x.gain ? <> · <GainText v={x.gain.avg} /></> : null}</span>
+                    {x.locked ? <Lock size={14} className="faint" aria-label="Always on" /> : <Switch checked={!!s.on[x.id]} onChange={() => s.toggle(x.id)} label={`Use ${x.name}`} />}
+                  </div>
+                ))}
+              </section>
+            )
+          })}
+        </div>
       </aside>
-      <AnimatePresence mode="wait">
-        <motion.article key={m.id} className="mod-detail" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={m.id} className="cfg-main" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
           <Detail m={m} />
-        </motion.article>
+        </motion.div>
       </AnimatePresence>
     </div>
   )
 }
 
-function Impact({ level }: { level: 'small' | 'medium' | 'large' }) {
-  const n = { small: 1, medium: 2, large: 3 }[level]
-  return <span className="impact" aria-label={`Estimated impact: ${level}`}>{[1, 2, 3].map((i) => <i key={i} className={i <= n ? 'on' : ''} style={{ width: 12, height: 4 }} />)}</span>
+function Dots({ n, of = 5 }: { n: number; of?: number }) {
+  return <span className="dots" aria-hidden>{Array.from({ length: of }, (_, i) => <i key={i} className={i < n ? 'on' : ''} />)}</span>
 }
+/** 0–5 dots from a measured gain or an estimated impact. */
+const strength = (m: Mod, avg?: number) => avg !== undefined ? Math.max(1, Math.min(5, Math.round(avg / 2))) : m.impact ? { small: 1, medium: 2, large: 4 }[m.impact] : 0
 
 function Detail({ m }: { m: Mod }) {
   const s = useStore()
   const chosen = m.options?.find((o) => o.id === s.opt[m.id]) ?? m.options?.[0]
   const g = chosen?.gain ?? m.gain
   const lines = { ...m.convars, ...chosen?.convars, ...m.autoexec, ...chosen?.autoexec }
-
-  const installPak = async () => {
-    try {
-      const r = await api.installPak()
-      if (r.names.length) { s.set({ status: r.status }); s.say(`Installed ${r.names.join(', ')} in addons.`) }
-    } catch (e) { s.say(String((e as Error).message), 'bad') }
-  }
-  const installGi = async () => {
-    try { s.set({ status: await api.installGameinfo() }); s.say('CompLock’s gameinfo.gi is in place. Your original is backed up.') } catch (e) { s.say(String((e as Error).message), 'bad') }
-  }
+  const on = !!s.on[m.id]
 
   return (
     <>
-      {m.before && m.after ? <Compare before={m.before} after={m.after} />
-        : m.shots ? <Gallery shots={m.shots} />
-        : m.before || m.after ? <div className="compare" style={{ cursor: 'default' }}><img src={m.after ?? m.before} alt="" /></div>
-        : <div className="placeholder-art"><span className="display">{m.name.split(' ')[0]}</span></div>}
-
-      <div className="detail-body">
-        <div>
-          <h2>{m.name}</h2>
-          <div className="by">
-            {m.source === 'complock'
-              ? <>By {m.author} for CompLock · <a href="#" onClick={(e) => { e.preventDefault(); api.open(COMPLOCK_URL) }}>deadlockconfig.com</a></>
-              : <>A VEIL tweak, written to {m.convars || chosen?.convars ? 'gameinfo.gi' : 'autoexec.cfg'}</>}
-          </div>
-          <p className="text">{m.detail}</p>
-          {m.conflicts && <p className="warn">{m.conflicts}</p>}
-          {m.source === 'complock' && !isInstalled(m, s.installed) && <p className="warn">This is a CompLock pak, not part of VEIL. Turning it on changes nothing until its pak is installed; its FPS gain only counts once it is.</p>}
-          {Object.keys(lines).length > 0 && (
-            <div className="cv-lines">{Object.entries(lines).map(([k, v]) => <div key={k}><code>{k}</code> <span className="faint">{v}</span></div>)}</div>
-          )}
+      <section className="cfg-hero">
+        {m.before && m.after ? <Compare before={m.before} after={m.after} />
+          : m.shots ? <Gallery shots={m.shots} />
+          : m.before || m.after ? <img className="cfg-img" src={m.after ?? m.before} alt="" />
+          : <div className="cfg-ph"><span>{m.name}</span></div>}
+        <Notch />
+        {m.source === 'complock' && (m.pak || m.gameinfo) && (
+          <span className={`cfg-state ${isInstalled(m, s.installed) ? 'ok' : ''}`}>{isInstalled(m, s.installed) ? 'In your game' : 'Downloads when you apply'}</span>
+        )}
+        <div className="cut">
+          <h2 className="h-wide">{m.name}</h2>
+          <Dots n={strength(m, g?.avg)} />
+          <p>{m.blurb}</p>
+          {m.locked
+            ? <span className="cta off" aria-disabled><span>Always on</span><span className="cta-go"><Lock size={13} /></span></span>
+            : (
+              <button className={`cta ${on ? 'off' : ''}`} onClick={() => s.toggle(m.id)}>
+                {g && <span className="cta-fig">{pct(g.avg)}</span>}
+                <span>{on ? 'In your config' : 'Add to config'}</span>
+                <span className="cta-go"><ArrowUpRight size={14} /></span>
+              </button>
+            )}
         </div>
-        <div>
-          {g ? (
-            <div className="stats">
-              <div><b className="num" style={{ color: g.avg > 0 ? 'var(--bone)' : 'var(--ash)' }}>{pct(g.avg)}</b><span>average FPS</span></div>
-              <div><b className="num" style={{ color: g.low > 0 ? 'var(--patina)' : 'var(--ash)' }}>{pct(g.low)}</b><span>1% lows</span></div>
-            </div>
-          ) : m.impact ? (
-            <div className="stats"><div><div className="impact" style={{ height: 46, alignItems: 'center' }}>{[1, 2, 3].map((i) => <i key={i} className={i <= { small: 1, medium: 2, large: 3 }[m.impact!] ? 'on' : ''} />)}</div><span>estimated {m.impact} impact, not benchmarked</span></div></div>
-          ) : null}
+      </section>
 
-          {m.options && (
+      <aside className="cfg-side">
+        <div className="card">
+          <h4>{g ? 'Frame rate' : 'Impact'}</h4>
+          {g ? (
+            <>
+              <div className="duo">
+                <div><b className="num">{pct(g.avg)}</b><span>average FPS</span></div>
+                <div><b className="num lows">{pct(g.low)}</b><span>1% lows</span></div>
+              </div>
+              <Wave avg={g.avg} low={g.low} />
+            </>
+          ) : m.impact ? <p>Estimated {m.impact} impact. Not part of CompLock’s benchmark.</p> : <p>A feel and visibility setting, not a performance one.</p>}
+        </div>
+
+        {m.options && (
+          <div className="card">
+            <h4>Variant</h4>
             <div className="opts" role="radiogroup" aria-label={`${m.name} options`}>
               {m.options.map((o) => (
                 <button key={o.id} className="opt" role="radio" aria-pressed={chosen?.id === o.id} aria-checked={chosen?.id === o.id} onClick={() => s.pick(m.id, o.id)}>
@@ -107,21 +123,42 @@ function Detail({ m }: { m: Mod }) {
                 </button>
               ))}
             </div>
-          )}
-
-          <div className="actions">
-            {m.id === 'veilhud' && <button className="btn ghost" onClick={() => s.set({ page: 'forge' })}>Design in the Forge</button>}
-            {!m.locked && (
-              <button className={`btn ${s.on[m.id] ? 'ghost' : 'primary'}`} onClick={() => s.toggle(m.id)}>{s.on[m.id] ? 'Remove from pack' : 'Add to pack'}</button>
-            )}
-            {m.pak && <button className="btn ghost" onClick={() => api.open(COMPLOCK_URL)}><Download size={16} />Get the pak</button>}
-            {m.pak && <button className="btn ghost" onClick={installPak} disabled={!s.status?.found}><FileInput size={16} />Install pak file</button>}
-            {m.gameinfo && <button className="btn ghost" onClick={() => api.open(COMPLOCK_URL)}><ExternalLink size={16} />Get CompLock’s pack</button>}
-            {m.gameinfo && <button className="btn ghost" onClick={installGi} disabled={!s.status?.found}><FileInput size={16} />Use their gameinfo.gi</button>}
           </div>
+        )}
+
+        <div className="card grow">
+          <h4>What it does</h4>
+          <p>{m.detail}</p>
+          {m.conflicts && <p className="warn">{m.conflicts}</p>}
+          {Object.keys(lines).length > 0 && (
+            <div className="cv-lines">{Object.entries(lines).map(([k, v]) => <div key={k}><code>{k}</code> <span className="faint">{v}</span></div>)}</div>
+          )}
+          <div className="by">
+            {m.source === 'complock'
+              ? <>By {m.author ?? 'CompLock'} · <a href="#" onClick={(e) => { e.preventDefault(); api.open(COMPLOCK_URL) }}>deadlockconfig.com</a> · <a href="#" onClick={(e) => { e.preventDefault(); api.open('https://ko-fi.com/deadlockconfig') }}>support them</a></>
+              : <>VEIL · written to {m.convars || chosen?.convars ? 'gameinfo.gi' : m.id === 'veilhud' ? 'a pak in addons' : 'autoexec.cfg'}</>}
+          </div>
+          {m.id === 'veilhud' && <button className="cta off" style={{ marginTop: 14 }} onClick={() => s.set({ page: 'forge' })}><span>Design it in the Forge</span><span className="cta-go"><ArrowUpRight size={14} /></span></button>}
         </div>
-      </div>
+      </aside>
     </>
+  )
+}
+
+/** A strip of bars whose height follows the gain, so a bigger gain reads as a louder wave. */
+function Wave({ avg, low }: { avg: number; low: number }) {
+  const n = 42
+  const amp = Math.min(1, Math.max(0.12, Math.abs(avg) / 10))
+  const bars = Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1)
+    const env = Math.sin(t * Math.PI) ** 0.6
+    const noise = (Math.sin(i * 12.9898 + avg) * 43758.5453) % 1
+    return Math.max(0.08, env * amp * (0.55 + Math.abs(noise) * 0.45))
+  })
+  return (
+    <div className="wave" aria-hidden>
+      {bars.map((h, i) => <motion.i key={i} initial={{ scaleY: 0 }} animate={{ scaleY: h }} transition={{ duration: 0.5, delay: i * 0.008 }} className={i % 3 === 0 && low > avg ? 'lo' : ''} />)}
+    </div>
   )
 }
 
@@ -142,7 +179,7 @@ function Compare({ before, after }: { before: string; after: string }) {
     >
       <img src={before} alt="Before" draggable={false} />
       <img src={after} alt="After" className="after" draggable={false} />
-      <div className="handle"><span><ChevronsLeftRight size={20} /></span></div>
+      <div className="handle"><span><ChevronsLeftRight size={18} /></span></div>
       <span className="lbl l">Stock</span>
       <span className="lbl r">With the mod</span>
     </div>
