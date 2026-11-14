@@ -25,6 +25,15 @@ export type Bar = {
   glow: boolean
   ult: { show: boolean; pos: 'left' | 'right' | 'above' | 'below'; style: 'dot' | 'ring' | 'icon' | 'text'; color: string; size: number }
 }
+/** VEIL HUD beyond the health bars: minimap, timers and souls. Mirrors HudExtras in src/main/hud.ts. */
+export type HudExtras = {
+  minimap: { on: boolean; size: number; opacity: number; bg: 'stock' | 'dark' | 'none'; side: 'right' | 'left'; x: number; y: number }
+  cooldowns: { on: boolean; size: number; color: string; passives: boolean }
+  ults: { on: boolean; size: number }
+  respawn: { on: boolean; size: number; color: string }
+  objectives: { midboss: boolean; rejuv: boolean; powerups: boolean }
+  souls: { players: boolean; team: boolean }
+}
 export type Crosshair = { r: number; g: number; b: number; gap: number; width: number; height: number; opacity: number; outline: number; dot: number; dotOpacity: number; heroReticles: boolean; hitMarker: number }
 
 type State = {
@@ -32,6 +41,7 @@ type State = {
   on: Record<string, boolean>
   opt: Record<string, string>
   bar: Bar
+  hudx: HudExtras
   cross: Crosshair
   xh: XSpec
   xhSaved: XSpec[]
@@ -52,6 +62,7 @@ type State = {
   toggle: (id: string) => void
   pick: (id: string, opt: string) => void
   setBar: (p: Partial<Bar>) => void
+  setHudx: <K extends keyof HudExtras>(k: K, p: Partial<HudExtras[K]>) => void
   setCross: (p: Partial<Crosshair>) => void
   setXh: (p: Partial<XSpec>) => void
   setCustom: (name: string, value: string | null) => void
@@ -63,6 +74,18 @@ export const DEFAULT_BAR: Bar = {
   numberPos: 'above', stamina: true, staminaCount: 3, debuffs: true, glow: true,
   ult: { show: true, pos: 'right', style: 'icon', color: '#f2c14e', size: 12 },
 }
+// everything starts off: none of it has been checked in a real match yet, and off means the stock HUD
+export const DEFAULT_HUDX: HudExtras = {
+  minimap: { on: false, size: 100, opacity: 100, bg: 'stock', side: 'right', x: 0, y: 15 },
+  cooldowns: { on: false, size: 100, color: '#f3ead9', passives: false },
+  ults: { on: false, size: 100 },
+  respawn: { on: false, size: 100, color: '#fe420e' },
+  objectives: { midboss: false, rejuv: false, powerups: false },
+  souls: { players: false, team: false },
+}
+/** Saved extras with any field a newer VEIL added filled in from the defaults. */
+export const fillHudx = (saved?: Partial<HudExtras>): HudExtras =>
+  Object.fromEntries(Object.entries(DEFAULT_HUDX).map(([k, v]) => [k, { ...v, ...((saved as any)?.[k] ?? {}) }])) as HudExtras
 export const DEFAULT_CROSS: Crosshair = { r: 255, g: 255, b: 255, gap: 4, width: 2, height: 16, opacity: 0.5, outline: 0.7, dot: 4, dotOpacity: 0.7, heroReticles: true, hitMarker: 0.1 }
 
 const defaultsOn = Object.fromEntries(['veilhud', 'fps', 'reflex', 'fog', 'particledetail'].map((id) => [id, true]))
@@ -85,6 +108,7 @@ export const useStore = create<State>()(
       on: defaultsOn,
       opt: defaultsOpt,
       bar: DEFAULT_BAR,
+      hudx: DEFAULT_HUDX,
       cross: DEFAULT_CROSS,
       xh: structuredClone(XH_ALL[0]),
       xhSaved: [],
@@ -111,6 +135,7 @@ export const useStore = create<State>()(
       },
       pick: (id, o) => set({ opt: { ...get().opt, [id]: o }, on: switchOn(get().on, id).on }),
       setBar: (p) => set({ bar: { ...DEFAULT_BAR, ...get().bar, ...p } }),
+      setHudx: (k, p) => set({ hudx: { ...get().hudx, [k]: { ...get().hudx[k], ...p } } }),
       setCross: (p) => set({ cross: { ...get().cross, ...p } }),
       setXh: (p) => set({ xh: { ...get().xh, ...p } }),
       setCustom: (name, value) => {
@@ -127,7 +152,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'veil',
-      partialize: ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }) => ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }),
+      partialize: ({ page, on, opt, bar, hudx, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }) => ({ page, on, opt, bar, hudx, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }),
       onRehydrateStorage: () => (st) => { if (st && st.prefs?.startPage !== 'last') st.page = 'lobby' },
       version: 4,
       // a saved config from before VEIL HUD and HUD++ excluded each other may have both on: keep VEIL HUD
@@ -135,7 +160,7 @@ export const useStore = create<State>()(
         const on: Record<string, boolean> = { ...current.on, ...(saved?.on ?? {}) }
         // first in the catalogue wins (VEIL HUD before HUD++ and HP Bars)
         for (const m of MODS) if (on[m.id]) for (const x of m.excludes ?? []) on[x] = false
-        return { ...current, ...saved, on }
+        return { ...current, ...saved, on, hudx: fillHudx(saved?.hudx) }
       },
       migrate: (old: any) => ({ ...old, on: { ...(old?.on ?? {}), veilhud: true, hudpp: false, gameinfo: false }, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),
     },

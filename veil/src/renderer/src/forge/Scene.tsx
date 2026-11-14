@@ -12,7 +12,7 @@ import { useStore } from '../lib/store'
 import type { Hero } from '../lib/heroes'
 import type { Hit, Sim } from './sim'
 
-export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'ult' | 'crosshair' | 'damage' | 'hero' | 'export'
+export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'ult' | 'map' | 'timers' | 'souls' | 'crosshair' | 'damage' | 'hero' | 'export'
 
 export function ForgeScene({ hero, sim, tab, barRef, dmgRef }: { hero?: Hero; sim: Sim; tab: Tab; barRef: RefObject<HTMLCanvasElement | null>; dmgRef: RefObject<HTMLDivElement | null> }) {
   const color = hero?.color ?? '#d4a855'

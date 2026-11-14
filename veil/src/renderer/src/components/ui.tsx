@@ -90,7 +90,7 @@ export async function applyPack() {
     // 2. engine and console values, written on top of whichever gameinfo.gi is now in place
     const status = await api.apply(p.convars, p.autoexec)
     let pakNote = ''
-    if (s.on.veilhud) pakNote = ` VEIL HUD installed as ${(await api.installHud(s.bar)).replace('_dir.vpk', '')}.`
+    if (s.on.veilhud) pakNote = ` VEIL HUD installed as ${(await api.installHud(s.bar, s.hudx)).replace('_dir.vpk', '')}.`
     else await api.removeHud()
     s.set({ status })
     const scan = await api.scan().catch(() => null)

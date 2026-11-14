@@ -153,11 +153,144 @@ export function hudCss(b: HudBar): string {
   return r.join('')
 }
 
-/** Builds the VEIL HUD pak from the stock stylesheet in this game install. */
-export async function buildHudPak(gameCitadel: string, bar: HudBar, version: string): Promise<Buffer> {
-  const stock = await extractFile(`${gameCitadel}/pak01_dir.vpk`, SHEET)
-  if (!stock) throw new Error('Could not find the game’s health bar stylesheet. Verify Deadlock in Steam and try again.')
-  const sheet = appendToData(stock, Buffer.from(hudCss(bar), 'utf8'))
-  const modinfo = Buffer.from(JSON.stringify({ name: 'VEIL HUD - VEIL', author: 'VEIL', version, description: 'Hero health bars designed in the VEIL Forge.' }, null, 2))
-  return writeVpk([{ path: 'modinfo.json', data: modinfo }, { path: SHEET, data: sheet }])
+// ---- HUD extras: minimap, timers and souls ----
+//
+// All CSS on the game's own stylesheets. Deadlock's HUD already computes ability and item cooldowns, every
+// player's ult cooldown, respawn times, the mid boss and rejuvenator timers, the powerup ring and each
+// player's souls; several of those panels exist but are hidden or faint by default. VEIL only shows, moves
+// and restyles them. Anything that needs arithmetic (the soul gap) needs a Panorama script, which VEIL can't
+// ship yet: see docs/hud-extras.md.
+
+export type HudExtras = {
+  minimap: { on: boolean; size: number; opacity: number; bg: 'stock' | 'dark' | 'none'; side: 'right' | 'left'; x: number; y: number }
+  cooldowns: { on: boolean; size: number; color: string; passives: boolean }
+  ults: { on: boolean; size: number }
+  respawn: { on: boolean; size: number; color: string }
+  objectives: { midboss: boolean; rejuv: boolean; powerups: boolean }
+  souls: { players: boolean; team: boolean }
+}
+
+export const SHEETS = {
+  hud: 'panorama/styles/hud.vcss_c',
+  minimap: 'panorama/styles/hud_minimap.vcss_c',
+  topbar: 'panorama/styles/citadel_hud_top_bar.vcss_c',
+  ability: 'panorama/styles/hud_ability_icon.vcss_c',
+  event: 'panorama/styles/in_world_event_timer.vcss_c',
+} as const
+
+function sheet() {
+  const r: string[] = []
+  return { r, rule: (sel: string, body: Record<string, string>) => r.push(`${sel}{${Object.entries(body).map(([k, v]) => `${k}: ${v};`).join('')}}`) }
+}
+
+/** The CSS each stock sheet gets for the extras, keyed by sheet path. Sheets with nothing to add are left out. */
+export function extrasCss(x: HudExtras): Record<string, string> {
+  const out: Record<string, string> = {}
+  const add = (path: string, css: string[]) => { if (css.length) out[path] = (out[path] ?? '') + css.join('') }
+
+  // hud.vcss_c places the minimap (#minimap_persp, bottom right) and owns the team souls and own respawn labels
+  {
+    const { r, rule } = sheet()
+    const m = x.minimap
+    if (m.on) {
+      const k = m.size / 100
+      r.push('/* ---- VEIL HUD: minimap ---- */')
+      // stock: 440x520 corner box, 400px frame, 360px map. Targeting mode (.gMinimapTargeting ...) is more specific and keeps its own sizes.
+      rule('#minimap_persp', {
+        width: px(440 * k), height: px(520 * k), 'horizontal-align': m.side,
+        'margin-left': m.side === 'left' ? px(m.x) : '0px', 'margin-right': m.side === 'right' ? px(m.x) : '0px', 'margin-bottom': px(m.y),
+      })
+      rule('#minimap_container', { width: px(400 * k), height: px(400 * k), 'margin-top': px(80 * k), opacity: String(m.opacity / 100) })
+      const frame = { width: px(400 * k), height: px(400 * k) }
+      rule('#minimap_frame', m.bg === 'stock' ? frame
+        : { ...frame, 'background-image': 'none', 'opacity-mask': 'none', 'world-blur': 'none', 'border-radius': '50%', 'background-color': m.bg === 'dark' ? '#000000b0' : 'transparent' })
+      rule('#hud_minimap', { width: px(360 * k), height: px(360 * k) })
+      rule('#minimap_location', { 'margin-left': px(240 * k), 'margin-bottom': px(45 * k) })
+    }
+    if (x.souls.team) {
+      r.push('/* ---- VEIL HUD: team souls ---- */')
+      rule('.team_gold', { visibility: 'visible' })
+    }
+    if (x.respawn.on) {
+      r.push('/* ---- VEIL HUD: own respawn timer ---- */')
+      rule('#respawn_timer .respawn_number', { 'font-size': px(36 * x.respawn.size / 100), color: x.respawn.color, 'max-width': px(100 * x.respawn.size / 100) })
+    }
+    add(SHEETS.hud, r)
+  }
+
+  // top bar: respawn timers, every player's souls, the rejuvenator / mid boss timer
+  {
+    const { r, rule } = sheet()
+    if (x.respawn.on) {
+      r.push('/* ---- VEIL HUD: top bar respawn timers ---- */')
+      rule('.RespawnTimer', { 'font-size': px(32 * x.respawn.size / 100), color: x.respawn.color })
+    }
+    if (x.souls.players) {
+      r.push('/* ---- VEIL HUD: every player’s souls ---- */')
+      rule('#TotalSoulsContainer,CitadelHudTopBarPlayer #TotalSoulsContainer', { visibility: 'visible', opacity: '1' })
+    }
+    if (x.objectives.rejuv) {
+      r.push('/* ---- VEIL HUD: rejuvenator / mid boss timer ---- */')
+      rule('#RejuvenatorCharges .midbossTimerLabel', { opacity: '1', 'font-size': '14px' })
+    }
+    add(SHEETS.topbar, r)
+  }
+
+  // ability icons: own abilities and items, and the ult icon of every player in the top bar (.UltimateStatus)
+  {
+    const { r, rule } = sheet()
+    const c = x.cooldowns
+    if (c.on) {
+      r.push('/* ---- VEIL HUD: cooldown seconds ---- */')
+      rule('.cooling_down .cooldown_timer', { color: c.color })
+      rule('.action_button .cooldown_timer', { 'font-size': px(35 * c.size / 100) })
+      rule('#hud_items .cooldown_timer', { 'font-size': px(22 * c.size / 100) })
+      if (c.passives) rule('#hud_passive_items .cooling_down .cooldown_timer', { visibility: 'visible', 'font-size': px(16 * c.size / 100), 'vertical-align': 'center', 'margin-bottom': '0px' })
+    }
+    if (x.ults.on) {
+      r.push('/* ---- VEIL HUD: every player’s ult cooldown in the top bar ---- */')
+      rule('.UltimateStatus', { overflow: 'noclip' })
+      rule('.UltimateStatus .cooling_down .cooldown_timer', { visibility: 'visible', 'font-size': px(14 * x.ults.size / 100), 'font-family': 'numericOracle', 'text-shadow': '0px 0px 3px 2.0 #000000', 'z-index': '10' })
+    }
+    add(SHEETS.ability, r)
+  }
+
+  if (x.objectives.midboss) {
+    const { r, rule } = sheet()
+    r.push('/* ---- VEIL HUD: mid boss respawn on the minimap ---- */')
+    rule('.map_button.mid_boss #NextSpawnTimer', { visibility: 'visible' })
+    add(SHEETS.minimap, r)
+  }
+
+  if (x.objectives.powerups) {
+    const { r, rule } = sheet()
+    r.push('/* ---- VEIL HUD: powerup spawn ring ---- */')
+    rule('.powerup.WindowRoot', { width: '28px', height: '28px' })
+    rule('.powerup .full_container', { visibility: 'visible' })
+    rule('.powerup .name', { visibility: 'collapse' })
+    add(SHEETS.event, r)
+  }
+  return out
+}
+
+/** Every stylesheet VEIL HUD changes, with the CSS appended to each. */
+export function hudSheets(bar: HudBar, extras?: HudExtras): Record<string, string> {
+  const out: Record<string, string> = { [SHEET]: hudCss(bar) }
+  if (extras) for (const [k, v] of Object.entries(extrasCss(extras))) out[k] = (out[k] ?? '') + v
+  return out
+}
+
+/** Builds the VEIL HUD pak from the stock stylesheets in this game install. */
+export async function buildHudPak(gameCitadel: string, bar: HudBar, extras: HudExtras | undefined, version: string): Promise<Buffer> {
+  const files: { path: string; data: Buffer }[] = []
+  for (const [path, css] of Object.entries(hudSheets(bar, extras))) {
+    const stock = await extractFile(`${gameCitadel}/pak01_dir.vpk`, path)
+    if (!stock) {
+      if (path === SHEET) throw new Error('Could not find the game’s health bar stylesheet. Verify Deadlock in Steam and try again.')
+      continue // a game update may rename a sheet; the rest of VEIL HUD still works
+    }
+    files.push({ path, data: appendToData(stock, Buffer.from(css, 'utf8')) })
+  }
+  const modinfo = Buffer.from(JSON.stringify({ name: 'VEIL HUD - VEIL', author: 'VEIL', version, description: 'Health bars, minimap, timers and souls designed in the VEIL Forge.' }, null, 2))
+  return writeVpk([{ path: 'modinfo.json', data: modinfo }, ...files])
 }
