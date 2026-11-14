@@ -19,6 +19,7 @@ export default function Lobby() {
   const s = useStore()
   const pack = computePack(s)
   const [foreign, setForeign] = useState(0)
+  const [aim, setAim] = useState<{ x: number; y: number } | null>(null)
   const { heroes } = useHeroes()
   const hero = heroes.find((h) => h.id === s.hero) ?? heroes.find((h) => h.name === 'Haze') ?? heroes[0]
   const yours = Math.round(BENCH.vanilla.avg * (1 + pack.gain.avg / 100))
@@ -34,24 +35,20 @@ export default function Lobby() {
     <div className="home5">
       <section className="h5-hero">
         <div className="h5-word" aria-hidden>VEIL</div>
-        <div className="h5-model">
-          <Suspense fallback={<Silhouette color={hero?.color} />}>{hero ? <HeroStage hero={hero} /> : <Silhouette />}</Suspense>
+        <div className="h5-model" onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAim({ x: e.clientX - r.left, y: e.clientY - r.top }) }} onPointerLeave={() => setAim(null)} onClick={() => go('crosshair')}>
+          <Suspense fallback={<Silhouette color={hero?.color} />}>
+            {hero ? <HeroStage hero={hero} overhead={<OverheadBar onClick={() => go('forge')} />} /> : <Silhouette />}
+          </Suspense>
+          {/* your crosshair follows the pointer over the hero, as if you were aiming at them; click to edit it */}
+          {aim && (
+            <div className="h5-aim" style={{ left: aim.x, top: aim.y }} aria-hidden>
+              <CrosshairSVG s={s.xh} zoom={1.4} animate={false} />
+              <span>{s.xh.name} · click to edit</span>
+            </div>
+          )}
         </div>
         <div className="h5-floor" aria-hidden />
         <Notch />
-
-        {/* product-page callouts: what your config does to this hero, each one a way into its page */}
-        <div className="h5-callouts">
-          <Callout className="c-hud" onClick={() => go('forge')} label={s.on.veilhud ? 'VEIL HUD' : 'Health bar'} value={s.on.veilhud ? 'Designed in the Forge' : 'Stock'}>
-            <MiniBar />
-          </Callout>
-          <Callout className="c-xh" onClick={() => go('crosshair')} label="Crosshair" value={s.xh.name}>
-            <span className="c-xh-art"><CrosshairSVG s={s.xh} zoom={0.9} animate={false} /></span>
-          </Callout>
-          <Callout className="c-fps" onClick={() => go('mods')} label="Your config" value={`${onCount} settings on`}>
-            <b className="c-big"><Tween value={pack.gain.avg} format={pct} /></b>
-          </Callout>
-        </div>
 
         {heroes.length > 1 && hero && (
           <div className="h5-switch" role="group" aria-label="Hero on the home page">
@@ -146,27 +143,20 @@ function Ring({ vanilla, yours }: { vanilla: number; yours: number }) {
   )
 }
 
-/** A label pinned to the hero by a thin line, like the callouts on a product page. */
-function Callout({ className, label, value, onClick, children }: { className: string; label: string; value: string; onClick: () => void; children?: React.ReactNode }) {
-  return (
-    <button className={`callout ${className}`} onClick={onClick}>
-      <i className="c-dot" aria-hidden /><i className="c-line" aria-hidden />
-      <span className="c-card">
-        {children}
-        <span className="c-text"><span className="k">{label}</span><b>{value}</b></span>
-      </span>
-    </button>
-  )
-}
-
-/** The health bar from the Forge, small. */
-function MiniBar() {
+/** Your health bar from the Forge, drawn over the hero's head on the home page. Click opens the Forge. */
+function OverheadBar({ onClick }: { onClick: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const bar = useStore((s) => s.bar)
+  const on = useStore((s) => !!s.on.veilhud)
   useEffect(() => {
-    const c = ref.current!, dpr = 2
-    c.width = 120 * dpr; c.height = 44 * dpr
-    drawBar(c.getContext('2d')!, 120, 44, dpr, { ...bar, width: Math.min(96, bar.width * 0.8), debuffs: false }, 'enemy', { hp: 1640, max: 2340, lag: 1900, stamina: 2, debuffs: 0, ult: 1 })
+    const c = ref.current!, dpr = 2, W = 230, H = 80
+    c.width = W * dpr; c.height = H * dpr
+    drawBar(c.getContext('2d')!, W, H, dpr, { ...bar, width: Math.min(170, bar.width * 1.25) }, 'enemy', { hp: 1640, max: 2340, lag: 1900, stamina: 2, debuffs: 1, ult: 1 })
   }, [bar])
-  return <canvas ref={ref} style={{ width: 120, height: 44 }} />
+  return (
+    <button className="overhead-bar" onClick={(e) => { e.stopPropagation(); onClick() }} title={on ? 'Your VEIL HUD. Click to change it in the Forge' : 'VEIL HUD is off. Click to design it in the Forge'}>
+      <canvas ref={ref} style={{ width: 230, height: 80 }} />
+      <span>{on ? 'Your VEIL HUD · edit in the Forge' : 'VEIL HUD is off · open the Forge'}</span>
+    </button>
+  )
 }

@@ -1,6 +1,6 @@
 // The Forge's stage: the chosen hero on a small brass-rimmed platform under a cone of light, inside a dark
 // curved backdrop, with the health bar and damage numbers projected over their head every frame.
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import { FrameCap } from '../components/FrameCap'
@@ -16,6 +16,9 @@ export type Tab = 'bar' | 'colors' | 'number' | 'stamina' | 'ult' | 'crosshair' 
 
 export function ForgeScene({ hero, sim, tab, barRef, dmgRef }: { hero?: Hero; sim: Sim; tab: Tab; barRef: RefObject<HTMLCanvasElement | null>; dmgRef: RefObject<HTMLDivElement | null> }) {
   const color = hero?.color ?? '#d4a855'
+  // the head's height in this pose (crouching heroes like Drifter stand lower); the bar floats just above it
+  const [top, setTop] = useState(HERO_HEIGHT)
+  const onFit = useCallback((f: { top: number }) => setTop(f.top), [])
   return (
     <Canvas className="three" shadows frameloop="demand" dpr={[1, 1.5]} camera={{ position: [0.6, 1.7, 5.4], fov: 32 }} gl={{ antialias: true }}>
       <color attach="background" args={['#030303']} />
@@ -31,13 +34,13 @@ export function ForgeScene({ hero, sim, tab, barRef, dmgRef }: { hero?: Hero; si
 
       <Boundary fallback={<Mannequin color={color} />} resetKey={hero?.id}>
         <Suspense fallback={<Mannequin color={color} />}>
-          <group position-y={0.07}>{hero?.model ? <HeroModel key={hero.id} url={hero.model} /> : <Mannequin color={color} />}</group>
+          <group position-y={0.07}>{hero?.model ? <HeroModel key={hero.id} url={hero.model} onReady={onFit} /> : <Mannequin color={color} />}</group>
         </Suspense>
       </Boundary>
 
       <BarPainter sim={sim} canvas={barRef} />
-      <Project el={barRef} at={[0, HERO_HEIGHT + 0.4, 0]} />
-      <Project el={dmgRef} at={[0.55, HERO_HEIGHT + 0.33, 0]} anchor="left" />
+      <Project el={barRef} at={[0, top + 0.07 + 0.3, 0]} />
+      <Project el={dmgRef} at={[0.55, top + 0.07 + 0.25, 0]} anchor="left" />
       <Cyclorama color={color} />
       <Platform color={color} />
       <LightCone />

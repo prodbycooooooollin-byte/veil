@@ -43,6 +43,8 @@ type State = {
   hero: string | null
   custom: Record<string, string>
   installed: string[]
+  /** CompLock paks VEIL has a local copy of (imported from a CompLock.zip) */
+  clLocal: string[]
   prefs: Prefs
   status: GameStatus | null
   toast: { text: string; tone: 'ok' | 'bad' } | null
@@ -94,6 +96,7 @@ export const useStore = create<State>()(
       hero: null,
       custom: {},
       installed: [],
+      clLocal: [],
       prefs: { startPage: 'home', background: true, reduceMotion: false },
       status: null,
       toast: null,

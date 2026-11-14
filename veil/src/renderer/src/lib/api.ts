@@ -42,6 +42,9 @@ type Bridge = {
   hudCss(bar: unknown): Promise<string>
   clSync(wanted: string[], gameinfo: boolean): Promise<{ installed: string[]; game: string }>
   onClProgress(fn: (p: { title: string; done: number; total: number } | null) => void): Off
+  clLocal(): Promise<string[]>
+  clFindZip(): Promise<string | null>
+  clImport(zip?: string): Promise<string[] | null>
   managed(): Promise<Record<string, string | string[]>>
   scan(): Promise<Scan>
   quarantine(rel: string[]): Promise<Scan>
@@ -123,6 +126,9 @@ const mockBridge: Bridge = {
   hudCss: async () => '/* browser preview: the CSS is built in the app */',
   clSync: async (wanted) => { await new Promise((r) => setTimeout(r, 700)); return { installed: wanted, game: '6860' } },
   onClProgress: () => noop,
+  clLocal: async () => [],
+  clFindZip: async () => 'C:/Users/you/Downloads/CompLock.zip',
+  clImport: async () => { await new Promise((r) => setTimeout(r, 600)); return ['lowpolytroopers.vpk', 'dx11outlines.vpk', 'vulkanoutlines.vpk', 'hitsounds.vpk', 'nomusiclowgunvolume.vpk'] },
   managed: async () => ({}),
   scan: () => wait(mockScan),
   quarantine: (rel) => {

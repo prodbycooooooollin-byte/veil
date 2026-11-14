@@ -184,9 +184,12 @@ ipcMain.handle('cl:sync', async (_e, wanted: string[], wantGameinfo: boolean) =>
     // skip only if VEIL's copy is really still there (Steam's file check or a clean-up can remove it)
     const prev = have['cl:' + key]
     if (typeof prev === 'string' && existsSync(join(g, 'game', 'citadel', 'addons', prev))) { installed.push(key); continue }
+    // paks CompLock still serves are downloaded; older ones come from the user's imported CompLock.zip
+    const local = m.files[key] ? null : await cl.readLocal(key)
+    if (!m.files[key] && !local) throw new Error(`${key} isn’t on deadlockconfig.com any more. Import your CompLock.zip in Config to use it.`)
     const title = m.files[key]?.title ?? key
     send({ title, done: 0, total: m.files[key]?.parts[0]?.csize ?? 0 })
-    const data = await cl.downloadPak(key, (done, total) => send({ title, done, total }))
+    const data = local ?? await cl.downloadPak(key, (done, total) => send({ title, done, total }))
     await dl.installBufferAs(g, 'cl:' + key, data)
     installed.push(key)
   }
@@ -200,6 +203,17 @@ ipcMain.handle('cl:sync', async (_e, wanted: string[], wantGameinfo: boolean) =>
   }
   send(null)
   return { installed, game: m.game }
+})
+ipcMain.handle('cl:local', () => cl.localKeys())
+ipcMain.handle('cl:findZip', () => cl.findZip())
+ipcMain.handle('cl:import', async (_e, zip?: string) => {
+  let file = zip
+  if (!file) {
+    const r = await dialog.showOpenDialog(win!, { title: 'Pick your CompLock.zip', filters: [{ name: 'CompLock pack', extensions: ['zip'] }], properties: ['openFile'] })
+    if (r.canceled || !r.filePaths[0]) return null
+    file = r.filePaths[0]
+  }
+  return cl.importZip(file)
 })
 ipcMain.handle('veil:managed', async () => (gamePath ? dl.veilManaged(gamePath) : {}))
 ipcMain.handle('game:scan', async () => dl.scan(need()))
@@ -216,6 +230,7 @@ else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus() } })
   app.setAppUserModelId('com.veil.deadlock')
   app.whenReady().then(() => {
+    cl.setLocalDir(app.getPath('userData'))
     create()
     setupUpdates()
     // toggles the crosshair overlay from inside the game

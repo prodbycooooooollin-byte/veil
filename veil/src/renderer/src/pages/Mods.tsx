@@ -18,6 +18,9 @@ export default function Mods() {
   const s = useStore()
   const set = s.set
   useEffect(() => { api.scan().then((r) => set({ installed: r.paks.filter((q) => q.enabled).map((q) => q.name ?? '') })).catch(() => {}) }, [set])
+  const [zip, setZip] = useState<string | null>(null)
+  useEffect(() => { api.clLocal().then((clLocal) => set({ clLocal })).catch(() => {}); api.clFindZip().then(setZip).catch(() => {}) }, [set])
+  const missing = MODS.filter((x) => !hasLocal(x, s.clLocal))
   const m = byId[sel]
   const onCount = MODS.filter((x) => s.on[x.id]).length
   const pack = computePack(s)
@@ -30,6 +33,16 @@ export default function Mods() {
           <div className="cfg-sum"><span><b>{onCount}</b> of {MODS.length} on</span><span className="gain"><Tween value={pack.gain.avg} format={pct} /> FPS</span></div>
         </header>
         <div className="cfg-scroll">
+          {missing.length > 0 && (
+            <div className="cfg-import">
+              <b>{missing.length} more CompLock mods</b>
+              <span>{missing.map((x) => x.name).join(', ')}. deadlockconfig.com no longer offers them; VEIL takes them from your CompLock.zip.</span>
+              <button className="cta" onClick={() => importZip(zip ?? undefined)}>
+                <span>{zip ? `Import ${zip.split(/[\\/]/).pop()} from Downloads` : 'Import CompLock.zip'}</span>
+                <span className="cta-go"><ArrowUpRight size={14} /></span>
+              </button>
+            </div>
+          )}
           {ORDER.map((g) => {
             const items = MODS.filter((x) => x.group === g)
             if (!items.length) return null
@@ -40,7 +53,9 @@ export default function Mods() {
                   <div key={x.id} role="button" tabIndex={0} className={`cfg-row ${sel === x.id ? 'sel' : ''} ${s.on[x.id] ? 'on' : ''}`} onClick={() => setSel(x.id)} onKeyDown={(e) => e.key === 'Enter' && setSel(x.id)}>
                     <span className="t">{x.name}</span>
                     <span className="s">{x.id === 'veilhud' ? <b className="forge-hint">Customise it in the Forge</b> : x.source === 'veil' ? 'VEIL' : x.source === 'complock' ? `CompLock${x.author ? ' · ' + x.author : ''}` : 'Tweak'}{x.gain ? <> · <GainText v={x.gain.avg} /></> : null}</span>
-                    {x.locked ? <Lock size={14} className="faint" aria-label="Always on" /> : <Switch checked={!!s.on[x.id]} onChange={() => s.toggle(x.id)} label={`Use ${x.name}`} />}
+                    {x.locked ? <Lock size={14} className="faint" aria-label="Always on" />
+                      : !hasLocal(x, s.clLocal) ? <button className="pill small" onClick={(e) => { e.stopPropagation(); importZip(zip ?? undefined) }}>Import</button>
+                      : <Switch checked={!!s.on[x.id]} onChange={() => s.toggle(x.id)} label={`Use ${x.name}`} />}
                   </div>
                 ))}
               </section>
@@ -89,6 +104,8 @@ function Detail({ m }: { m: Mod }) {
           <p>{m.blurb}</p>
           {m.locked
             ? <span className="cta off" aria-disabled><span>Always on</span><span className="cta-go"><Lock size={13} /></span></span>
+            : !hasLocal(m, s.clLocal)
+              ? <button className="cta" onClick={() => importZip()}><span>Import from your CompLock.zip</span><span className="cta-go"><ArrowUpRight size={14} /></span></button>
             : (
               <button className={`cta ${on ? 'off' : ''}`} onClick={() => s.toggle(m.id)}>
                 {g && <span className="cta-fig">{pct(g.avg)}</span>}
@@ -233,4 +250,22 @@ function HudPreview() {
       <span className="hp-go">Click to change it</span>
     </button>
   )
+}
+
+/** Whether every pak a mod needs is available: online ones always, older ones once imported. */
+function hasLocal(m: Mod, local: string[]): boolean {
+  if (!m.local || !m.cl) return true
+  return (typeof m.cl === 'string' ? [m.cl] : Object.values(m.cl)).every((k) => local.includes(k))
+}
+
+async function importZip(zip?: string) {
+  const s = useStore.getState()
+  try {
+    const keys = await api.clImport(zip)
+    if (!keys) return
+    s.set({ clLocal: await api.clLocal() })
+    s.say(`Imported ${keys.length} CompLock paks. Switch them on and apply.`)
+  } catch (e) {
+    s.say(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'bad')
+  }
 }

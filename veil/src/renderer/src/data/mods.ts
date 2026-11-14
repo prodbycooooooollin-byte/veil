@@ -27,6 +27,8 @@ export type Mod = {
   match?: string
   /** CompLock pack file(s) VEIL downloads for this mod; per option id when it has variants */
   cl?: string | Record<string, string>
+  /** an older CompLock pak the site no longer serves: VEIL takes it from the user's CompLock.zip */
+  local?: boolean
   /** mods that change the same game file; only one of them can be on */
   excludes?: string[]
   conflicts?: string
@@ -144,6 +146,29 @@ export const MODS: Mod[] = [
     after: CL + 'hp-bars.webp',
   },
 
+  // Older CompLock paks, no longer on deadlockconfig.com: imported from the user's CompLock.zip
+  {
+    id: 'troopers', cl: 'lowpolytroopers.vpk', local: true, match: 'Low-poly troopers', name: 'Low-poly troopers', group: 'effects', source: 'complock', author: 'aglow', pak: true, impact: 'medium',
+    blurb: 'Lane troopers with far simpler models and materials.',
+    detail: 'There are dozens of troopers on screen in a lane push. Cheaper models take load off both the processor and the graphics card. From an older CompLock pack; not part of their benchmark.',
+  },
+  {
+    id: 'outlines', cl: { dx11: 'dx11outlines.vpk', vulkan: 'vulkanoutlines.vpk' }, local: true, match: 'Thicker outlines', name: 'Thicker outlines', group: 'visibility', source: 'complock', pak: true,
+    blurb: 'Heroes get a thicker outline so they stand out from the map.',
+    detail: 'Replaces the outline shader. There is one pak for DirectX 11 and one for Vulkan; pick the renderer you play on (Vulkan if you launch with -vulkan).',
+    options: [{ id: 'dx11', label: 'DirectX 11', note: 'The game’s default renderer.' }, { id: 'vulkan', label: 'Vulkan', note: 'If you launch with -vulkan.' }],
+  },
+  {
+    id: 'nomusic', cl: 'nomusiclowgunvolume.vpk', local: true, match: 'No music', name: 'No music, low gun volume', group: 'visibility', source: 'complock', author: 'jcStani', pak: true, excludes: ['music'],
+    blurb: 'No match music, and your own gun quieter, so footsteps and abilities come through.',
+    detail: 'A sound mix change rather than a performance one. It goes further than VEIL’s Music off, which only turns the music slider down.',
+  },
+  {
+    id: 'kovaak', cl: 'hitsounds.vpk', local: true, match: 'KovaaK', name: 'KovaaK’s hit sounds', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    blurb: 'Hit sounds from the aim trainer, as a ready pak.',
+    detail: 'Replaces the stock hit indicator sounds. Only one hit sound pak can be active at a time, so leave it off if you install your own from the Hit sounds page.',
+  },
+
   // Potato: below the lowest video preset. Values from CompLock's cvar index (build 6861); none are in their gameinfo.gi.
   { id: 'skybox', name: 'No 3D skybox', group: 'potato', source: 'veil', impact: 'small', blurb: 'The distant skyline around the map is not drawn.', detail: 'r_draw3dskybox false. Buildings beyond the play area disappear into a flat sky. Nothing you can fight in is affected.', convars: { r_draw3dskybox: 'false' } },
   { id: 'particlelights', name: 'Effects don’t light the world', group: 'potato', source: 'veil', impact: 'medium', blurb: 'Abilities and explosions stop casting light on walls and heroes.', detail: 'r_citadel_disable_particle_lights true. Every glowing effect was also a moving light; now only effects that need one keep it. Fights look flatter and run lighter.', convars: { r_citadel_disable_particle_lights: 'true' } },
@@ -161,7 +186,7 @@ export const MODS: Mod[] = [
   { id: 'hdr', name: 'HDR off', group: 'potato', source: 'veil', impact: 'small', blurb: 'A flatter image with clipped highlights.', detail: 'sc_hdr_enabled_override 0. Renders in a cheaper colour format. Bright effects lose their glow and look washed out.', convars: { sc_hdr_enabled_override: '0' } },
 
   // VEIL tweaks
-  { id: 'music', name: 'Music off', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'No music, in menus or in a match.', detail: 'snd_musicvolume 0, the game’s own music slider, set at every launch. Footsteps and abilities come through clearer. Turn it off here to get your old slider value back from the game’s settings.', autoexec: { snd_musicvolume: '0' } },
+  { id: 'music', excludes: ['nomusic'], name: 'Music off', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'No music, in menus or in a match.', detail: 'snd_musicvolume 0, the game’s own music slider, set at every launch. Footsteps and abilities come through clearer. Turn it off here to get your old slider value back from the game’s settings.', autoexec: { snd_musicvolume: '0' } },
   { id: 'fps', name: 'Uncapped frame rate', group: 'tweaks', source: 'veil', impact: 'large', blurb: 'Removes the 400 FPS cap in game, caps menus at 60.', detail: 'fps_max 0 lifts the in-game cap; fps_max_ui 60 stops the menu from heating your PC for nothing.', autoexec: { fps_max: '0', fps_max_ui: '60' } },
   { id: 'reflex', name: 'Low latency mode', group: 'tweaks', source: 'veil', impact: 'small', blurb: 'NVIDIA Reflex or AMD Anti-Lag 2.', detail: 'Lower input delay. Boost (2) keeps NVIDIA clocks up and only exists on NVIDIA.', convars: { r_low_latency: '1' }, options: [ { id: 'on', label: 'On', convars: { r_low_latency: '1' } }, { id: 'boost', label: 'On with boost', note: 'NVIDIA only', convars: { r_low_latency: '2' } } ] },
   { id: 'fog', name: 'Low volumetric fog', group: 'tweaks', source: 'veil', impact: 'medium', blurb: 'Fog drawn at low resolution with fewer slices.', detail: 'r_citadel_fog_quality 0 and volume_fog_depth 48. The fog stays, it just costs less.', convars: { r_citadel_fog_quality: '0', volume_fog_depth: '48' } },

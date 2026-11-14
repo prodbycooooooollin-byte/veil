@@ -1,5 +1,5 @@
 // Lobby hero: the 3D model under a cold key light and a rim light in the hero's colour, on a floor that fades out.
-import { Suspense, useState } from 'react'
+import { Suspense, useState, type ReactNode } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ContactShadows, Environment, Lightformer } from '@react-three/drei'
 import { Boundary, HeroModel, Parallax } from './HeroModel'
@@ -18,7 +18,7 @@ export function StudioEnv({ color }: { color: string }) {
   )
 }
 
-export function HeroStage({ hero }: { hero?: Hero }) {
+export function HeroStage({ hero, overhead }: { hero?: Hero; overhead?: ReactNode }) {
   const fallback = <Silhouette color={hero?.color} />
   // the id of the hero whose model is in; a different hero shows the loading line until its model reports in.
   // (No reset effect on hero change: parent effects run after the child's, so it would wipe a cached model's ready.)
@@ -27,7 +27,7 @@ export function HeroStage({ hero }: { hero?: Hero }) {
   return (
     <Boundary fallback={fallback} resetKey={hero.id}>
       {ready !== hero.id && <div className="hero-loading">Loading {hero.name}</div>}
-      <Canvas onCreated={(st) => st.camera.lookAt(0, 1.02, 0)} frameloop="demand" dpr={[1, 1.25]} camera={{ position: [0, 1.15, 5.6], fov: 30 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
+      <Canvas onCreated={(st) => st.camera.lookAt(0, 1.02, 0)} frameloop="demand" dpr={[1, 1.25]} camera={{ position: [0, 1.2, 4.9], fov: 30 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
         <ambientLight intensity={0.28} />
         <spotLight position={[0.6, 6, 3]} angle={0.42} penumbra={0.85} intensity={90} color="#ffffff" />
         <FrameCap fps={30} />
@@ -37,7 +37,7 @@ export function HeroStage({ hero }: { hero?: Hero }) {
           <StudioEnv color={hero.color} />
           <group position={[0, -0.02, 0]}>
             <Parallax amount={0.35}>
-              <HeroModel key={hero.id} url={hero.model} onReady={() => setReady(hero.id)} />
+              <HeroModel key={hero.id} url={hero.model} onReady={() => setReady(hero.id)} overhead={ready === hero.id ? overhead : undefined} />
             </Parallax>
           </group>
           {/* drawn once the model is in; it barely moves, so the shadow needn't be redrawn every frame */}

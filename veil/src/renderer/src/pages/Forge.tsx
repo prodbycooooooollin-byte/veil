@@ -94,8 +94,8 @@ function StyleCard({ id, name }: { id: Bar['style']; name: string }) {
   const setBar = useStore((s) => s.setBar)
   useEffect(() => {
     const c = ref.current!, dpr = 2
-    c.width = 104 * dpr; c.height = 40 * dpr
-    drawBar(c.getContext('2d')!, 104, 40, dpr, { ...bar, style: id, width: 84, height: Math.min(bar.height, 9), numberSize: 11, debuffs: false }, side, { hp: 1580, max: 2340, lag: 1800, stamina: 2, debuffs: 0 })
+    c.width = 104 * dpr; c.height = 44 * dpr
+    drawBar(c.getContext('2d')!, 104, 44, dpr, { ...bar, style: id, width: 80, height: Math.min(bar.height, 9), numberSize: 10, numberPos: bar.numberPos === 'left' ? 'above' : bar.numberPos, debuffs: false, ult: { ...bar.ult, show: false } }, side, { hp: 1580, max: 2340, lag: 1800, stamina: 2, debuffs: 0 })
   }, [bar, side, id])
   return (
     <button className="style-card" aria-pressed={bar.style === id} onClick={() => setBar({ style: id })}>

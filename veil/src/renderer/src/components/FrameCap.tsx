@@ -1,7 +1,10 @@
-// Drives a <Canvas frameloop="demand"> at a fixed rate instead of the monitor's refresh rate (up to 240 Hz),
-// and stops it completely while VEIL is hidden or not focused, so it never takes GPU time from the game.
+// Drives a <Canvas frameloop="demand"> at a fixed rate instead of the monitor's refresh rate (up to 240 Hz).
+// While VEIL isn't focused (you're in the game) it drops to a trickle, enough that a model which finishes
+// loading still appears; minimised or hidden, it stops completely.
 import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
+
+const BACKGROUND_FPS = 4
 
 export function FrameCap({ fps = 30 }: { fps?: number }) {
   const invalidate = useThree((s) => s.invalidate)
@@ -10,9 +13,9 @@ export function FrameCap({ fps = 30 }: { fps?: number }) {
     const run = () => {
       clearInterval(timer)
       timer = 0
-      invalidate() // always one frame, so the scene shows even when VEIL starts in the background
-      if (document.hidden || !document.hasFocus()) return
-      timer = window.setInterval(invalidate, 1000 / fps)
+      invalidate()
+      if (document.hidden) return
+      timer = window.setInterval(invalidate, 1000 / (document.hasFocus() ? fps : BACKGROUND_FPS))
     }
     run()
     window.addEventListener('focus', run)
