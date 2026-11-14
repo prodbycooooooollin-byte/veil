@@ -1,0 +1,31 @@
+// Published by CompLock (deadlockconfig.com/docs/benchmarks). Build 6860, 2026-11-09.
+export const BENCH = {
+  rig: 'Ryzen 7 9800X3D, Radeon RX 9070, 2560×1440, 40% render scale, low settings, Vulkan',
+  source: 'https://deadlockconfig.com/docs/benchmarks/',
+  vanilla: { avg: 297, low: 148 },
+  complock: { avg: 486, low: 232 },
+  frames: 4435356,
+  launches: 94,
+  cpu: [
+    { name: 'Engine settings', sub: 'gameinfo.gi', avg: 24.1, low: 18.0 },
+    { name: 'Particle Pruning', sub: 'reduced tracers', avg: 10.1, low: 5.5 },
+    { name: 'Particle Pruning', sub: 'stock tracers', avg: 8.4, low: 4.6 },
+    { name: 'Sound stack cap', avg: 6.7, low: 6.3 },
+    { name: 'Cloth off', avg: 4.0, low: 3.7 },
+    { name: 'HUD++', avg: 3.8, low: 5.2 },
+    { name: 'Hidden damage', avg: 2.8, low: 5.4 },
+    { name: 'Client physics off', avg: 2.6, low: 0.8 },
+    { name: 'Low detail map', avg: 2.6, low: 2.1 },
+    { name: 'Brighter lighting', avg: 2.4, low: 0.3 },
+    { name: 'Cumulative damage', avg: 1.8, low: 3.0 },
+  ],
+  gpu: [
+    { name: 'Engine settings', avg: 15.6, low: 14.8 },
+    { name: 'Particle Pruning', sub: 'reduced', avg: 8.3, low: 6.6 },
+    { name: 'Particle Pruning', sub: 'stock', avg: 7.7, low: 5.6 },
+    { name: 'Low detail map', avg: 3.8, low: 1.3 },
+    { name: 'HUD++', avg: 3.7, low: 4.4 },
+    { name: 'Brighter lighting', avg: 2.9, low: 1.4 },
+    { name: 'Cloth off', avg: 0.8, low: 1.3 },
+  ],
+}

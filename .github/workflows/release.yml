@@ -1,0 +1,34 @@
+# Builds the Windows installer and publishes it as a GitHub release whenever a version tag is pushed.
+# The app's auto-updater reads these releases (latest.yml + the installer) and offers the update in-app.
+#
+# To ship an update:  bump "version" in veil/package.json, commit, then
+#   git tag v0.2.1 && git push && git push --tags
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: veil
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: veil/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Build and publish
+        run: npx electron-vite build && npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
