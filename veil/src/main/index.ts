@@ -3,6 +3,7 @@ import { autoUpdater } from 'electron-updater'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import * as dl from './deadlock'
+import { buildHudPak, hudCss, type HudBar } from './hud'
 
 let win: BrowserWindow | null = null
 let overlay: BrowserWindow | null = null
@@ -154,6 +155,13 @@ ipcMain.handle('file:save', async (_e, name: string, data: Uint8Array) => {
   await writeFile(r.filePath, data)
   return r.filePath
 })
+ipcMain.handle('hud:install', async (_e, bar: HudBar) => {
+  const g = need()
+  const pak = await buildHudPak(join(g, 'game', 'citadel'), bar, app.getVersion())
+  return dl.installVeilPak(g, 'hud', pak)
+})
+ipcMain.handle('hud:remove', async () => { const g = need(); await dl.removeVeilPak(g, 'hud'); return dl.status(g) })
+ipcMain.handle('hud:css', (_e, bar: HudBar) => hudCss(bar))
 ipcMain.handle('game:scan', async () => dl.scan(need()))
 ipcMain.handle('game:quarantine', async (_e, rel: string[]) => { const g = need(); await dl.quarantine(g, rel); return dl.scan(g) })
 ipcMain.handle('game:unremove', async (_e, id: string) => { const g = need(); await dl.restoreRemoved(g, id); return dl.scan(g) })

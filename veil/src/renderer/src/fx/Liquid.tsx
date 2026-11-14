@@ -45,16 +45,19 @@ export function Liquid({ tint = '#d4a855', dim = 1 }: { tint?: string; dim?: num
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
     const loc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
     const uR = gl.getUniformLocation(prog, 'r'), uT = gl.getUniformLocation(prog, 't'), uM = gl.getUniformLocation(prog, 'm'), uTint = gl.getUniformLocation(prog, 'tint')
-    const scale = 0.5
+    const scale = 0.33
     const resize = () => { c.width = Math.ceil(innerWidth * scale); c.height = Math.ceil(innerHeight * scale); gl.viewport(0, 0, c.width, c.height) }
     resize(); addEventListener('resize', resize)
     const mouse = [0.5, 0.5], eased = [0.5, 0.5]
     const onMove = (e: PointerEvent) => { mouse[0] = e.clientX / innerWidth; mouse[1] = 1 - e.clientY / innerHeight }
     addEventListener('pointermove', onMove)
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-    let raf = 0, t0 = performance.now()
+    let raf = 0, t0 = performance.now(), last = 0
     const hex = (s: string) => { const v = parseInt(s.replace('#', ''), 16); return [(v >> 16 & 255) / 255, (v >> 8 & 255) / 255, (v & 255) / 255] }
     const frame = (now: number) => {
+      // 30 fps is plenty for a slow backdrop and halves its cost
+      if (now - last < 32) { raf = requestAnimationFrame(frame); return }
+      last = now
       eased[0] += (mouse[0] - eased[0]) * 0.04; eased[1] += (mouse[1] - eased[1]) * 0.04
       gl.uniform2f(uR, c.width, c.height)
       gl.uniform1f(uT, reduce ? 40 : (now - t0) / 1000 + 40)

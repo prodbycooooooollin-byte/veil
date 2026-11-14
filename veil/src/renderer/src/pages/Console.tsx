@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
-import { Copy, FileUp, X } from 'lucide-react'
+import { Copy, FileUp, X } from '../components/icons'
 import { CVARS, CATS, parseCvarlist, type Cvar, type Cat } from '../data/cvars'
 import { useStore, computePack } from '../lib/store'
-import { PageHead } from '../components/ui'
+import { PageHead, Switch } from '../components/ui'
 
 let imported: Cvar[] = []
 
@@ -42,6 +42,16 @@ export default function Console() {
     .sort((a, b) => b[1] - a[1] || (query ? 0 : CATS.indexOf(a[0].cat) - CATS.indexOf(b[0].cat)) || a[0].name.localeCompare(b[0].name))
     .map(([v]) => v)
   const v = all.find((x) => x.name === sel) ?? list[0]
+  // double-click: switches on/off values flip at once, others jump to the value field
+  const quick = (x: Cvar) => {
+    setSel(x.name)
+    const cur = current[x.name] ?? x.def
+    if (/^(true|false)$/.test(x.def)) {
+      const next = cur === 'true' ? 'false' : 'true'
+      s.setCustom(x.name, next)
+      s.say(`${x.name} is now ${next}. Apply to write it.`)
+    } else setTimeout(() => (document.querySelector('.setter input') as HTMLInputElement | null)?.select(), 30)
+  }
 
   const importLog = async (f: File | undefined) => {
     if (!f) return
@@ -55,7 +65,7 @@ export default function Console() {
   return (
     <div className="console">
       <div className="console-main">
-        <PageHead title="Console" sub="Every setting the game reads, what it does and where it goes. Set a value and it joins your pack." />
+        <PageHead title="Console" sub="Every setting the game reads. Double-click to switch one on or off; type a value and press Enter to set it." />
         <div className="prompt">
           <label>
             <span aria-hidden>›</span>
@@ -71,7 +81,7 @@ export default function Console() {
         </div>
         <div className="cv-list" role="listbox" aria-label="Cvars">
           {list.slice(0, 400).map((x) => (
-            <button key={x.name} role="option" aria-selected={v?.name === x.name} className={`cv ${v?.name === x.name ? 'sel' : ''} ${s.custom[x.name] !== undefined ? 'set' : ''}`} onClick={() => setSel(x.name)}>
+            <button key={x.name} role="option" aria-selected={v?.name === x.name} className={`cv ${v?.name === x.name ? 'sel' : ''} ${s.custom[x.name] !== undefined ? 'set' : ''}`} onClick={() => setSel(x.name)} onDoubleClick={() => quick(x)} title={/^(true|false)$/.test(x.def) ? 'Double-click to switch on or off' : 'Double-click to edit the value'}>
               <span className="name"><Highlight text={x.name} q={query} /></span>
               <span className="def">{current[x.name] ?? x.def}</span>
               <span className="desc">{x.desc}</span>
@@ -94,6 +104,12 @@ function Side({ v, current }: { v: Cvar; current?: string }) {
     <>
       <h2>{v.name}</h2>
       <p className="d">{v.desc}</p>
+      {/^(true|false)$/.test(v.def) && (
+        <div className="cv-toggle">
+          <span>{(s.custom[v.name] ?? current ?? v.def) === 'true' ? 'On' : 'Off'}</span>
+          <Switch checked={(s.custom[v.name] ?? current ?? v.def) === 'true'} onChange={(on) => { s.setCustom(v.name, on ? 'true' : 'false'); setVal(on ? 'true' : 'false') }} label={v.name} />
+        </div>
+      )}
       <dl className="kv">
         <dt>Default</dt><dd>{v.def}</dd>
         {v.range && <><dt>Range</dt><dd>{v.range}</dd></>}
@@ -103,7 +119,7 @@ function Side({ v, current }: { v: Cvar; current?: string }) {
         {v.flags?.length ? <><dt>Flags</dt><dd>{v.flags.join(', ')}</dd></> : null}
       </dl>
       <div className="setter">
-        <input value={val} onChange={(e) => setVal(e.target.value)} aria-label={`Value for ${v.name}`} spellCheck={false} />
+        <input value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { s.setCustom(v.name, val); s.say(`${v.name} set to ${val}. Apply to write it.`) } }} aria-label={`Value for ${v.name}`} spellCheck={false} />
         <button className="btn primary" onClick={() => { s.setCustom(v.name, val); s.say(`${v.name} set to ${val}. Apply to write it.`) }}>Set</button>
       </div>
       <div className="actions" style={{ marginTop: 10 }}>

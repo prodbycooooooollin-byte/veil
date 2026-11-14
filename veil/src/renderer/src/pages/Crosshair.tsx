@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, ChevronDown, Copy, ClipboardPaste, Plus, Trash2, ZoomIn } from 'lucide-react'
+import { Check, ChevronDown, Copy, ClipboardPaste, Plus, Trash2, ZoomIn } from '../components/icons'
 import { CrosshairSVG } from '../components/CrosshairSVG'
 import { LIBRARY, gameFit, extent, type XSpec } from '../lib/crosshair'
 import { useStore } from '../lib/store'
@@ -94,7 +94,7 @@ export default function Crosshair() {
               </LibGroup>
             )}
             {LIBRARY.map((g) => (
-              <LibGroup key={g.group} title={g.group}>
+              <LibGroup key={g.group} title={g.group} note={g.note}>
                 {g.items.map((x) => <Tile key={x.name} x={x} on={xh.name === x.name} onPick={() => choose(x)} />)}
               </LibGroup>
             ))}
@@ -197,10 +197,11 @@ export default function Crosshair() {
   )
 }
 
-function LibGroup({ title, children }: { title: string; children: ReactNode }) {
+function LibGroup({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
     <div className="lib-group">
       <h4>{title}</h4>
+      {note && <p className="lib-note">{note}</p>}
       <div className="lib-grid">{children}</div>
     </div>
   )

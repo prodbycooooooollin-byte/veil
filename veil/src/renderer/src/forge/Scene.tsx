@@ -122,7 +122,8 @@ function Mannequin({ color }: { color: string }) {
   )
 }
 
-export const BAR_W = 280, BAR_H = 96
+// roomy enough for vertical bars and an ult indicator above or below
+export const BAR_W = 380, BAR_H = 240
 
 /** Keeps a DOM element glued to a point in the scene, scaled by distance the way the game scales overhead bars. */
 function Project({ el, at, anchor = 'center' }: { el: RefObject<HTMLElement | null>; at: [number, number, number]; anchor?: 'center' | 'left' }) {

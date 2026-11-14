@@ -24,6 +24,7 @@ export type Mod = {
   locked?: boolean
   pak?: boolean
   gameinfo?: boolean
+  match?: string
   conflicts?: string
   before?: string
   after?: string
@@ -34,7 +35,7 @@ export type Mod = {
 }
 
 export const GROUPS: Record<Mod['group'], { name: string; line: string }> = {
-  hud: { name: 'HUD', line: 'Always part of the pack.' },
+  hud: { name: 'HUD', line: 'What you see over heroes.' },
   engine: { name: 'Engine', line: 'Less work per frame. Nothing looks or sounds different.' },
   effects: { name: 'Effects and map', line: 'Less to draw. These change how the game looks.' },
   visibility: { name: 'Visibility', line: 'Easier to read in a fight.' },
@@ -43,7 +44,13 @@ export const GROUPS: Record<Mod['group'], { name: string; line: string }> = {
 
 export const MODS: Mod[] = [
   {
-    id: 'hudpp', name: 'HUD++', group: 'hud', source: 'complock', author: 'jcStani', locked: true, pak: true, size: '800 KB',
+    id: 'veilhud', name: 'VEIL HUD', group: 'hud', source: 'veil',
+    blurb: 'Your Forge health bars, ult indicator and stamina, built into a real game pak.',
+    detail: 'VEIL takes the game’s own health bar stylesheet from your install, adds the design from the Forge, and installs it as a pak in addons. Heroes only; troopers, bosses and buildings stay stock. Rebuilt every time you apply.',
+    impact: 'small',
+  },
+  {
+    id: 'hudpp', name: 'HUD++', group: 'hud', source: 'complock', author: 'jcStani', pak: true, size: '800 KB', match: 'HUD++',
     blurb: 'A cleaner HUD that costs less to draw.',
     detail: 'Cooldowns in seconds, team souls with the gap between teams, boss and powerup timers, and a choice of how damage numbers show.',
     gain: { avg: 3.8, low: 5.2 },
@@ -62,7 +69,7 @@ export const MODS: Mod[] = [
     ],
   },
   {
-    id: 'gameinfo', name: 'Engine settings', group: 'engine', source: 'complock', author: 'HoppCX', locked: true, gameinfo: true,
+    id: 'gameinfo', name: 'Engine settings', group: 'engine', source: 'complock', author: 'HoppCX', gameinfo: true,
     blurb: 'CompLock’s gameinfo.gi: the biggest single gain.',
     detail: 'Engine values tuned for frame time, fog off, and a wider field of view. Install CompLock’s gameinfo.gi from their pack; VEIL keeps a backup of yours and writes your field of view and tweaks on top.',
     gain: { avg: 24.1, low: 18.0 },
@@ -74,7 +81,7 @@ export const MODS: Mod[] = [
     ],
   },
   {
-    id: 'cloth', name: 'Cloth simulation off', group: 'engine', source: 'complock', author: 'HoppCX', pak: true,
+    id: 'cloth', match: 'cloth', name: 'Cloth simulation off', group: 'engine', source: 'complock', author: 'HoppCX', pak: true,
     blurb: 'Coats, capes and skirts removed from the 17 heroes that have them.',
     detail: 'The pak swaps the cloth meshes out and VEIL turns cloth_update off, so nothing is simulated.',
     conflicts: 'Not compatible with other mods that replace hero models.',
@@ -90,13 +97,13 @@ export const MODS: Mod[] = [
     convars: { cl_phys_enabled: 'false', cl_disable_ragdolls: 'true' },
   },
   {
-    id: 'soundcap', name: 'Sound stack update cap', group: 'engine', source: 'complock', author: 'HoppCX', pak: true, size: '7.4 KB',
+    id: 'soundcap', match: 'Sound stack', name: 'Sound stack update cap', group: 'engine', source: 'complock', author: 'HoppCX', pak: true, size: '7.4 KB',
     blurb: 'Playing sounds update about 60 times a second instead of every frame.',
     detail: 'At high frame rates the sound system was updating every frame. Capping it frees the main thread with no audible change.',
     gain: { avg: 6.7, low: 6.3 },
   },
   {
-    id: 'particles', name: 'Particle Pruning', group: 'effects', source: 'complock', author: 'HoppCX', pak: true, size: '2.3 MB',
+    id: 'particles', match: 'Particle Pruning', name: 'Particle Pruning', group: 'effects', source: 'complock', author: 'HoppCX', pak: true, size: '2.3 MB',
     blurb: 'Effects keep their shapes and warnings, without the glow, smoke and sparks.',
     detail: 'Every ability stays readable. What goes is the decoration around it.',
     gain: { avg: 8.4, low: 4.6 },
@@ -107,42 +114,42 @@ export const MODS: Mod[] = [
     ],
   },
   {
-    id: 'lowmap', name: 'Low detail map', group: 'effects', source: 'complock', author: 'HoppCX', pak: true,
+    id: 'lowmap', match: 'Low detail map', name: 'Low detail map', group: 'effects', source: 'complock', author: 'HoppCX', pak: true,
     blurb: '414 textures and 676 materials swapped for low-detail versions.',
     detail: 'Mostly helps when your graphics card is the limit.',
     gain: { avg: 3.8, low: 0 },
     before: CL + 'pack/street-stock.webp', after: CL + 'pack/lowdetailmap-after.webp',
   },
   {
-    id: 'lighting', name: 'Brighter lighting', group: 'effects', source: 'complock', author: 'BreadRollius', pak: true,
+    id: 'lighting', match: 'Brighter lighting', name: 'Brighter lighting', group: 'effects', source: 'complock', author: 'BreadRollius', pak: true,
     blurb: 'A brighter, flatter image.',
     detail: 'No vignette or base bloom, and no lamp, storm or street light glow.',
     gain: { avg: 2.9, low: 0 },
     before: CL + 'pack/street-stock.webp', after: CL + 'pack/lighting-after.webp',
   },
   {
-    id: 'troopers', name: 'Low-poly troopers', group: 'effects', source: 'complock', author: 'aglow', pak: true, impact: 'medium',
+    id: 'troopers', match: 'Low-poly troopers', name: 'Low-poly troopers', group: 'effects', source: 'complock', author: 'aglow', pak: true, impact: 'medium',
     blurb: 'Lane troopers with far simpler models and materials.',
     detail: 'There are dozens of troopers on screen in a lane push. Cheaper models take load off both the processor and the graphics card. Not part of CompLock’s benchmark.',
   },
   {
-    id: 'outlines', name: 'Thicker outlines', group: 'visibility', source: 'complock', pak: true,
+    id: 'outlines', match: 'Thicker outlines', name: 'Thicker outlines', group: 'visibility', source: 'complock', pak: true,
     blurb: 'Heroes get a thicker outline so they stand out from the map.',
     detail: 'Replaces the outline shader. There is one pak for DirectX 11 and one for Vulkan; install the one that matches the renderer you play on.',
     options: [ { id: 'dx11', label: 'DirectX 11' }, { id: 'vulkan', label: 'Vulkan' } ],
   },
   {
-    id: 'nomusic', name: 'No music, low gun volume', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    id: 'nomusic', match: 'No music', name: 'No music, low gun volume', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
     blurb: 'Music off and your own gun quieter, so footsteps and abilities come through.',
     detail: 'A sound mix change rather than a performance one.',
   },
   {
-    id: 'kovaak', name: 'KovaaK’s hit sounds', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    id: 'kovaak', match: 'KovaaK', name: 'KovaaK’s hit sounds', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
     blurb: 'Hit sounds from the aim trainer, as a ready pak.',
     detail: 'Replaces the stock hit indicator sounds. Only one hit sound pak can be active at a time.',
   },
   {
-    id: 'hpbars', name: 'jcStani’s HP Bars', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
+    id: 'hpbars', match: 'health bars', name: 'jcStani’s HP Bars', group: 'visibility', source: 'complock', author: 'jcStani', pak: true,
     blurb: 'Flat hero health bars, stamina as dots, debuffs above the number.',
     detail: 'Design your own version in the Forge and preview it on a hero before you install.',
     after: CL + 'hp-bars.webp',

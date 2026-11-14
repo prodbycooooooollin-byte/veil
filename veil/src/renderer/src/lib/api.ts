@@ -13,7 +13,7 @@ export type GameStatus = {
 export type UpdateState = { state: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'none' | 'error'; version?: string; percent?: number; message?: string }
 type Off = () => void
 export type PakKind = 'skin' | 'hud' | 'effects' | 'sound' | 'map' | 'model' | 'mixed' | 'unknown'
-export type ScannedPak = { file: string; size: number; enabled: boolean; files: number; kind: PakKind; label: string; name?: string; author?: string; heroes: string[]; sample: string[] }
+export type ScannedPak = { veil?: boolean; file: string; size: number; enabled: boolean; files: number; kind: PakKind; label: string; name?: string; author?: string; heroes: string[]; sample: string[] }
 export type Scan = { paks: ScannedPak[]; leftovers: { file: string; what: string }[]; removed: { id: string; when: number; files: string[] }[] }
 
 type Bridge = {
@@ -37,6 +37,9 @@ type Bridge = {
   togglePak(file: string): Promise<GameStatus>
   removePak(file: string): Promise<GameStatus>
   save(name: string, data: Uint8Array): Promise<string | null>
+  installHud(bar: unknown): Promise<string>
+  removeHud(): Promise<GameStatus>
+  hudCss(bar: unknown): Promise<string>
   scan(): Promise<Scan>
   quarantine(rel: string[]): Promise<Scan>
   unremove(id: string): Promise<Scan>
@@ -112,6 +115,9 @@ const mockBridge: Bridge = {
     a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     return name
   },
+  installHud: async () => 'pak01_dir.vpk',
+  removeHud: () => wait(mock),
+  hudCss: async () => '/* browser preview: the CSS is built in the app */',
   scan: () => wait(mockScan),
   quarantine: (rel) => {
     const files = rel.filter((r) => mockScan.paks.some((p) => 'addons/' + p.file === r) || mockScan.leftovers.some((l) => l.file === r))

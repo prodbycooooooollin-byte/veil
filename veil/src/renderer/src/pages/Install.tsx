@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, FolderOpen, Undo2, Shirt, LayoutPanelTop, Sparkles, Volume2, Map, Box, HelpCircle, Layers, AlertTriangle, RotateCcw, FileInput } from 'lucide-react'
+import { Check, FolderOpen, Undo2, Shirt, LayoutPanelTop, Sparkles, Volume2, Map, Box, HelpCircle, Layers, AlertTriangle, RotateCcw, FileInput } from '../components/icons'
 import { useStore, computePack } from '../lib/store'
 import { api, isApp, type Scan, type ScannedPak, type PakKind } from '../lib/api'
 import { PageHead, applyPack } from '../components/ui'
@@ -27,7 +27,7 @@ export default function Install() {
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
 
-  const refresh = () => api.scan().then((r) => { setScan(r); setSel(new Set()) }).catch(() => setScan(null))
+  const refresh = () => api.scan().then((r) => { setScan(r); setSel(new Set()); s.set({ installed: r.paks.filter((p) => p.enabled).map((p) => p.name ?? '') }) }).catch(() => setScan(null))
   useEffect(() => { if (st?.found) refresh() }, [st?.found])
 
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -39,7 +39,7 @@ export default function Install() {
   const paks = scan?.paks ?? []
   const leftovers = scan?.leftovers ?? []
   const all = [...paks.map((p) => 'addons/' + p.file), ...leftovers.map((l) => l.file)]
-  const notSkins = [...paks.filter((p) => !KIND[p.kind].keep).map((p) => 'addons/' + p.file), ...leftovers.map((l) => l.file)]
+  const notSkins = [...paks.filter((p) => !KIND[p.kind].keep && !p.veil).map((p) => 'addons/' + p.file), ...leftovers.map((l) => l.file)]
   const dupes = useMemo(() => {
     const seen: Record<string, ScannedPak[]> = {}
     for (const p of paks) if (p.name) (seen[baseName(p.name)] ??= []).push(p)
@@ -47,7 +47,7 @@ export default function Install() {
   }, [paks])
   const toggle = (r: string) => setSel((x) => { const n = new Set(x); n.has(r) ? n.delete(r) : n.add(r); return n })
   const managed = Object.keys(st?.managedConvars ?? {}).length
-  const foreign = paks.filter((p) => !KIND[p.kind].keep).length + leftovers.length
+  const foreign = paks.filter((p) => !KIND[p.kind].keep && !p.veil).length + leftovers.length
 
   return (
     <div className="game">
@@ -91,7 +91,7 @@ export default function Install() {
                 <label key={p.file} className={`g-row ${on ? 'on' : ''} ${p.enabled ? '' : 'off'}`}>
                   <input type="checkbox" checked={on} onChange={() => toggle(r)} />
                   <span className="g-check"><Check size={12} strokeWidth={3} /></span>
-                  <span className="g-kind" style={{ ['--k' as string]: k.tone }}><k.icon size={14} />{k.label}</span>
+                  {p.veil ? <span className="g-kind" style={{ ['--k' as string]: 'var(--patina)' }}>VEIL</span> : <span className="g-kind" style={{ ['--k' as string]: k.tone }}><k.icon size={14} />{k.label}</span>}
                   <span className="g-name"><b>{p.name?.split(/\s[-–]\s/)[0] ?? p.label}</b><small>{p.author ?? (p.name?.split(/\s[-–]\s/)[1] || 'Unknown author')}</small></span>
                   <span className="g-meta num">{p.files} files</span>
                   <span className="g-meta num">{size(p.size)}</span>

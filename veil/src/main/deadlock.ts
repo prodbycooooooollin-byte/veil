@@ -232,7 +232,7 @@ export async function removePak(game: string, file: string): Promise<void> {
 
 /* ---------- scanning and cleaning up what other tools left behind ---------- */
 
-export type ScannedPak = PakInfo & { file: string; size: number; enabled: boolean; name?: string; author?: string }
+export type ScannedPak = PakInfo & { file: string; size: number; enabled: boolean; name?: string; author?: string; veil?: boolean }
 export type Leftover = { file: string; what: string }
 export type RemovedSet = { id: string; when: number; files: string[] }
 
@@ -248,7 +248,8 @@ export async function scan(game: string): Promise<{ paks: ScannedPak[]; leftover
       const full = join(dir, f)
       if (/\.vpk(\.off)?$/i.test(f)) {
         const s = await stat(full)
-        paks.push({ ...(await inspect(full)), file: f, size: s.size, enabled: !f.endsWith('.off') })
+        const info = await inspect(full)
+        paks.push({ ...info, file: f, size: s.size, enabled: !f.endsWith('.off'), veil: / - VEIL$/.test(info.name ?? '') })
       } else if (/^(mods\.txt|\.sigil\.json|\.sigil_disabled|modinfo\.json|.*\.json)$/i.test(f) || f.startsWith('.sigil')) {
         leftovers.push({ file: `addons/${f}`, what: f === 'mods.txt' ? 'Load order list from another mod pack' : 'Settings of another mod manager' })
       }
@@ -317,4 +318,40 @@ export async function restoreRemoved(game: string, id: string): Promise<number> 
 export async function prepareFreshStart(game: string): Promise<RemovedSet> {
   const rel = ['cfg/autoexec.cfg', 'gameinfo.gi' + BACKUP_SUFFIX].filter((r) => existsSync(join(citadel(game), r)))
   return quarantine(game, rel)
+}
+
+/* ---------- VEIL's own paks ---------- */
+const manifestPath = (game: string) => join(addonsDir(game), '.veil.json')
+async function readManifest(game: string): Promise<Record<string, string>> {
+  try { return JSON.parse(await readFile(manifestPath(game), 'utf8')) } catch { return {} }
+}
+
+/**
+ * Writes one of VEIL's paks (e.g. 'hud') into addons, replacing the previous build of the same pak.
+ * VEIL takes the lowest free number so its paks win over others (a lower number loads first and wins).
+ */
+export async function installVeilPak(game: string, id: string, data: Buffer): Promise<string> {
+  const dir = addonsDir(game)
+  await mkdir(dir, { recursive: true })
+  const m = await readManifest(game)
+  let name = m[id] && existsSync(join(dir, m[id])) ? m[id] : undefined
+  if (!name) {
+    const taken = new Set((await readdir(dir)).map((f) => f.toLowerCase().replace(/\.off$/, '')))
+    for (let n = 1; n < 100 && !name; n++) {
+      const c = `pak${String(n).padStart(2, '0')}_dir.vpk`
+      if (!taken.has(c)) name = c
+    }
+  }
+  if (!name) throw new Error('All 99 pak slots in the addons folder are used.')
+  await writeFile(join(dir, name), data)
+  m[id] = name
+  await writeFile(manifestPath(game), JSON.stringify(m, null, 2))
+  return name
+}
+
+export async function removeVeilPak(game: string, id: string): Promise<void> {
+  const m = await readManifest(game)
+  if (m[id] && existsSync(join(addonsDir(game), m[id]))) await unlink(join(addonsDir(game), m[id]))
+  delete m[id]
+  await writeFile(manifestPath(game), JSON.stringify(m, null, 2))
 }

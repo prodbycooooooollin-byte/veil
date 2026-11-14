@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Upload } from 'lucide-react'
+import { Play, Upload } from '../components/icons'
 import { KITS, renderKit, decodeFile, play, bake, peaks, leadingSilence, type Cut, type Kit } from '../lib/sound'
 import { useStore } from '../lib/store'
 import { api } from '../lib/api'

@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { LayoutGrid, Layers, Wand2, Crosshair as CrossIcon, AudioLines, TerminalSquare, HardDriveDownload, Minus, Square, Copy, X, Download, RotateCw } from 'lucide-react'
+import { LayoutGrid, Layers, Wand2, Crosshair as CrossIcon, AudioLines, TerminalSquare, HardDriveDownload, Minus, Square, Copy, X, Download, RotateCw } from './components/icons'
 import { useStore, type Page } from './lib/store'
 import { api, isApp, type UpdateState } from './lib/api'
 import { Liquid } from './fx/Liquid'
@@ -14,22 +14,26 @@ import Sound from './pages/Sound'
 import Console from './pages/Console'
 import Install from './pages/Install'
 import Crosshair from './pages/Crosshair'
+import Settings from './pages/Settings'
+import { NavIcon, type NavName, Download as DownloadIcon } from './components/icons'
 
 const Forge = lazy(() => import('./pages/Forge'))
 
-type NavItem = { id: Page; label: string; icon: typeof LayoutGrid }
+type NavItem = { id: Page; label: string; icon: NavName }
 const NAV: { group: string | null; items: NavItem[] }[] = [
-  { group: null, items: [{ id: 'lobby', label: 'Home', icon: LayoutGrid }] },
-  { group: 'Performance', items: [{ id: 'mods', label: 'Mods', icon: Layers }, { id: 'console', label: 'Console', icon: TerminalSquare }] },
-  { group: 'Look and feel', items: [{ id: 'forge', label: 'Forge', icon: Wand2 }, { id: 'crosshair', label: 'Crosshair', icon: CrossIcon }, { id: 'sound', label: 'Hit sounds', icon: AudioLines }] },
-  { group: 'Game', items: [{ id: 'install', label: 'Game', icon: HardDriveDownload }] },
+  { group: null, items: [{ id: 'lobby', label: 'Home', icon: 'home' }] },
+  { group: 'Performance', items: [{ id: 'mods', label: 'Mods', icon: 'mods' }, { id: 'console', label: 'Console', icon: 'console' }] },
+  { group: 'Look and feel', items: [{ id: 'forge', label: 'Forge', icon: 'forge' }, { id: 'crosshair', label: 'Crosshair', icon: 'crosshair' }, { id: 'sound', label: 'Hit sounds', icon: 'sound' }] },
+  { group: 'Game', items: [{ id: 'install', label: 'Game', icon: 'game' }] },
 ]
-const PAGES = { lobby: Lobby, mods: Mods, forge: Forge, crosshair: Crosshair, sound: Sound, console: Console, install: Install }
+const PAGES = { lobby: Lobby, mods: Mods, forge: Forge, crosshair: Crosshair, sound: Sound, console: Console, install: Install, settings: Settings }
 
 export default function App() {
   const page = useStore((s) => s.page)
   const set = useStore((s) => s.set)
   const status = useStore((s) => s.status)
+  const prefs = useStore((s) => s.prefs)
+  useEffect(() => { document.documentElement.classList.toggle('reduce-motion', prefs.reduceMotion) }, [prefs.reduceMotion])
   const [max, setMax] = useState(false)
   const [version, setVersion] = useState('')
   const [upd, setUpd] = useState<UpdateState>({ state: 'idle' })
@@ -38,13 +42,14 @@ export default function App() {
   useEffect(() => { api.version().then(setVersion) }, [])
   useEffect(() => api.onWinState(setMax), [])
   useEffect(() => api.onUpdate(setUpd), [])
+  // load the 3D Forge in the background so opening it later is instant
+  useEffect(() => { const t = setTimeout(() => { import('./pages/Forge') }, 1200); return () => clearTimeout(t) }, [])
 
   const P = PAGES[page] ?? Lobby
 
   return (
     <>
-      <Liquid tint="#d4a855" dim={page === 'lobby' ? 1 : 0} />
-      <div className="grain" aria-hidden />
+      {page === 'lobby' && prefs.background && !prefs.reduceMotion && <Liquid tint="#d4a855" />}
       <div className="app">
         <header className="topbar">
           <div className="spacer" />
@@ -65,10 +70,10 @@ export default function App() {
           {NAV.map((g, gi) => (
             <div className="side-group" key={gi}>
               {g.group && <div className="side-label">{g.group}</div>}
-              {g.items.map(({ id, label, icon: I }) => (
+              {g.items.map(({ id, label, icon }) => (
                 <button key={id} className={`side-item ${page === id ? 'on' : ''}`} onClick={() => set({ page: id })} aria-current={page === id ? 'page' : undefined}>
                   {page === id && <motion.span layoutId="side-active" className="side-active" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
-                  <I size={17} strokeWidth={1.8} />
+                  <NavIcon name={icon} active={page === id} />
                   <span className="side-name">{label}</span>
                   <SideHint id={id} />
                 </button>
@@ -77,22 +82,19 @@ export default function App() {
           ))}
           <div className="grow" />
           <PackCard />
-          <div className="side-foot">
-            <span>VEIL {version}</span>
-            <button onClick={() => api.checkUpdate().then((r) => r && setUpd(r))} title="Check for updates" aria-label="Check for updates"><RotateCw size={13} /></button>
-          </div>
+          <button className={`side-item side-settings ${page === 'settings' ? 'on' : ''}`} onClick={() => set({ page: 'settings' })} aria-current={page === 'settings' ? 'page' : undefined}>
+            {page === 'settings' && <motion.span layoutId="side-active" className="side-active" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+            <NavIcon name="settings" active={page === 'settings'} />
+            <span className="side-name">Settings</span>
+            <span className="hint ver">{version}</span>
+          </button>
         </nav>
 
         <main className="stage">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={page} className="page"
-              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
-            >
-              <Suspense fallback={null}><P /></Suspense>
-            </motion.div>
-          </AnimatePresence>
+          {/* the new page shows at once; a short fade-in is the only transition */}
+          <motion.div key={page} className="page" initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }}>
+            <Suspense fallback={null}><P /></Suspense>
+          </motion.div>
         </main>
       </div>
       <Toast />
@@ -113,7 +115,7 @@ function UpdatePill({ u }: { u: UpdateState }) {
         >
           {u.state === 'ready'
             ? <><RotateCw size={13} />Restart to update{u.version ? ` to ${u.version}` : ''}</>
-            : <><Download size={13} />Downloading update<span className="bar"><i style={{ width: `${u.percent ?? 0}%` }} /></span></>}
+            : <><DownloadIcon size={13} />Downloading update<span className="bar"><i style={{ width: `${u.percent ?? 0}%` }} /></span></>}
         </motion.button>
       )}
     </AnimatePresence>

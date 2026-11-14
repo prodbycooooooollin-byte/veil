@@ -1,8 +1,8 @@
-import { useRef, useState, type PointerEvent as RPE } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as RPE } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronsLeftRight, Download, FileInput, ExternalLink, Lock } from 'lucide-react'
+import { ChevronsLeftRight, Download, FileInput, ExternalLink, Lock } from '../components/icons'
 import { MODS, GROUPS, byId, COMPLOCK_URL, type Mod } from '../data/mods'
-import { useStore } from '../lib/store'
+import { useStore, isInstalled } from '../lib/store'
 import { api } from '../lib/api'
 import { GainText, PageHead, Switch, pct } from '../components/ui'
 
@@ -12,6 +12,9 @@ export default function Mods() {
   const [sel, setSel] = useState('particles')
   const on = useStore((s) => s.on)
   const toggle = useStore((s) => s.toggle)
+  const installed = useStore((s) => s.installed)
+  const set = useStore((s) => s.set)
+  useEffect(() => { api.scan().then((r) => set({ installed: r.paks.filter((q) => q.enabled).map((q) => q.name ?? '') })).catch(() => {}) }, [set])
   const m = byId[sel]
 
   return (
@@ -23,7 +26,7 @@ export default function Mods() {
             <div className="group-h"><b>{GROUPS[g].name}</b><span>{MODS.filter((x) => x.group === g && on[x.id]).length} of {MODS.filter((x) => x.group === g).length} on</span></div>
             {MODS.filter((x) => x.group === g).map((x) => (
               <div key={x.id} role="button" tabIndex={0} className={`mod-row ${sel === x.id ? 'sel' : ''}`} onClick={() => setSel(x.id)} onKeyDown={(e) => e.key === 'Enter' && setSel(x.id)}>
-                <span className="t">{x.name}{x.source === 'veil' ? <span className="tag veil">VEIL</span> : null}</span>
+                <span className="t">{x.name}{x.source === 'veil' ? <span className="tag veil">VEIL</span> : isInstalled(x, installed) ? <span className="tag ok">Installed</span> : <span className="tag ext">External</span>}</span>
                 {x.locked ? <Lock size={14} className="faint" aria-label="Always on" /> : <Switch checked={!!on[x.id]} onChange={() => toggle(x.id)} label={`Use ${x.name}`} />}
                 <span className="s">{x.blurb}</span>
                 <span className="g">{x.gain ? <GainText v={x.gain.avg} /> : x.impact ? <Impact level={x.impact} /> : null}</span>
@@ -79,6 +82,7 @@ function Detail({ m }: { m: Mod }) {
           </div>
           <p className="text">{m.detail}</p>
           {m.conflicts && <p className="warn">{m.conflicts}</p>}
+          {m.source === 'complock' && !isInstalled(m, s.installed) && <p className="warn">This is a CompLock pak, not part of VEIL. Turning it on changes nothing until its pak is installed; its FPS gain only counts once it is.</p>}
           {Object.keys(lines).length > 0 && (
             <div className="cv-lines">{Object.entries(lines).map(([k, v]) => <div key={k}><code>{k}</code> <span className="faint">{v}</span></div>)}</div>
           )}
@@ -106,6 +110,7 @@ function Detail({ m }: { m: Mod }) {
           )}
 
           <div className="actions">
+            {m.id === 'veilhud' && <button className="btn ghost" onClick={() => s.set({ page: 'forge' })}>Design in the Forge</button>}
             {!m.locked && (
               <button className={`btn ${s.on[m.id] ? 'ghost' : 'primary'}`} onClick={() => s.toggle(m.id)}>{s.on[m.id] ? 'Remove from pack' : 'Add to pack'}</button>
             )}

@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { animate, useMotionValue, useTransform } from 'motion/react'
 import { useStore, computePack } from '../lib/store'
 import { api } from '../lib/api'
-import { Check, X } from 'lucide-react'
+import { Check, X } from './icons'
 import { AnimatePresence, motion } from 'motion/react'
 
 export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string }) {
@@ -77,8 +77,13 @@ export async function applyPack() {
   const p = computePack(s)
   try {
     const status = await api.apply(p.convars, p.autoexec)
+    let pakNote = ''
+    if (s.on.veilhud) pakNote = ` VEIL HUD installed as ${(await api.installHud(s.bar)).replace('_dir.vpk', '')}.`
+    else await api.removeHud()
     s.set({ status })
-    s.say(`Applied to Deadlock: ${Object.keys(p.convars).length} engine values and ${Object.keys(p.autoexec).length} console values. Restart the game.`)
+    const scan = await api.scan().catch(() => null)
+    if (scan) s.set({ installed: scan.paks.filter((p) => p.enabled).map((p) => p.name ?? '') })
+    s.say(`Applied: ${Object.keys(p.convars).length} engine and ${Object.keys(p.autoexec).length} console values.${pakNote} Restart Deadlock.`)
   } catch (e) {
     s.say(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'bad')
   }

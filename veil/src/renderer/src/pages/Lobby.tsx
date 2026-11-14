@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { AlertTriangle, ArrowRight, Play } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Play } from '../components/icons'
 import { BENCH } from '../data/benchmarks'
 import { byId } from '../data/mods'
 import { useStore, computePack, type Page } from '../lib/store'
@@ -24,7 +24,7 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!s.status?.found) return
-    api.scan().then((r) => setForeign(r.paks.filter((p) => p.kind !== 'skin').length + r.leftovers.length)).catch(() => {})
+    api.scan().then((r) => { setForeign(r.paks.filter((p) => p.kind !== 'skin' && !p.veil).length + r.leftovers.length); s.set({ installed: r.paks.filter((p) => p.enabled).map((p) => p.name ?? '') }) }).catch(() => {})
   }, [s.status?.found])
 
   return (

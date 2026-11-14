@@ -1,5 +1,7 @@
 // Reads the file list of a Valve VPK (v1/v2 directory) and works out what kind of mod it is from the paths inside.
 import { open } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { crc32 } from 'node:zlib'
 
 export type PakKind = 'skin' | 'hud' | 'effects' | 'sound' | 'map' | 'model' | 'mixed' | 'unknown'
 export type PakInfo = {
@@ -148,4 +150,91 @@ export async function inspect(file: string): Promise<PakInfo & { name?: string; 
     return { ...classify(entries.map((e) => e.path)), ...(await declared(file, entries, dataStart)) }
   }
   catch { return { files: 0, kind: 'unknown', label: 'Could not be read', heroes: [], sample: [], areas: {} } }
+}
+
+/* ---------- writing ---------- */
+
+export type PakFile = { path: string; data: Buffer }
+
+/**
+ * Builds a single-file VPK v2 (pakNN_dir.vpk) with every file stored inside it, the layout Deadlock addons use.
+ * Files keep the order given; the tree groups them by extension, then folder, in order of first appearance.
+ */
+export function writeVpk(files: PakFile[]): Buffer {
+  const groups = new Map<string, Map<string, { name: string; file: PakFile }[]>>()
+  for (const f of files) {
+    const slash = f.path.lastIndexOf('/')
+    const dir = slash < 0 ? ' ' : f.path.slice(0, slash)
+    const base = f.path.slice(slash + 1)
+    const dot = base.lastIndexOf('.')
+    const ext = dot < 0 ? ' ' : base.slice(dot + 1)
+    const name = dot < 0 ? base : base.slice(0, dot)
+    if (!groups.has(ext)) groups.set(ext, new Map())
+    const dirs = groups.get(ext)!
+    if (!dirs.has(dir)) dirs.set(dir, [])
+    dirs.get(dir)!.push({ name, file: f })
+  }
+  const z = Buffer.from([0])
+  const s = (t: string) => Buffer.concat([Buffer.from(t, 'utf8'), z])
+  const tree: Buffer[] = [], data: Buffer[] = []
+  let offset = 0
+  for (const [ext, dirs] of groups) {
+    tree.push(s(ext))
+    for (const [dir, list] of dirs) {
+      tree.push(s(dir))
+      for (const { name, file } of list) {
+        tree.push(s(name))
+        const e = Buffer.alloc(18)
+        e.writeUInt32LE(crc32(file.data) >>> 0, 0)
+        e.writeUInt16LE(0, 4)          // no preload bytes
+        e.writeUInt16LE(0x7fff, 6)     // stored in this file
+        e.writeUInt32LE(offset, 8)
+        e.writeUInt32LE(file.data.length, 12)
+        e.writeUInt16LE(0xffff, 16)
+        tree.push(e)
+        data.push(file.data)
+        offset += file.data.length
+      }
+      tree.push(z)
+    }
+    tree.push(z)
+  }
+  tree.push(z)
+  const treeBuf = Buffer.concat(tree), dataBuf = Buffer.concat(data)
+  const header = Buffer.alloc(28)
+  header.writeUInt32LE(0x55aa1234, 0); header.writeUInt32LE(2, 4); header.writeUInt32LE(treeBuf.length, 8)
+  header.writeUInt32LE(dataBuf.length, 12); header.writeUInt32LE(0, 16); header.writeUInt32LE(48, 20); header.writeUInt32LE(0, 24)
+  const md5 = (b: Buffer) => createHash('md5').update(b).digest()
+  const treeMd5 = md5(treeBuf), archMd5 = md5(Buffer.alloc(0))
+  const whole = md5(Buffer.concat([header, treeBuf, dataBuf, treeMd5, archMd5]))
+  return Buffer.concat([header, treeBuf, dataBuf, treeMd5, archMd5, whole])
+}
+
+/** Every file in a single-file VPK with its contents. */
+export async function readVpkFiles(file: string): Promise<PakFile[]> {
+  const { entries, dataStart } = await readTree(file)
+  const fh = await open(file, 'r')
+  try {
+    const out: PakFile[] = []
+    for (const e of entries) {
+      const b = Buffer.alloc(e.length)
+      if (e.archive === 0x7fff) await fh.read(b, 0, e.length, dataStart + e.offset)
+      out.push({ path: e.path, data: Buffer.concat([e.preload, b]) })
+    }
+    return out
+  } finally { await fh.close() }
+}
+
+/** One file from a game VPK, following multi-archive paks (pak01_dir.vpk + pak01_NNN.vpk). */
+export async function extractFile(dirVpk: string, wanted: string): Promise<Buffer | null> {
+  const { entries, dataStart } = await readTree(dirVpk)
+  const e = entries.find((x) => x.path === wanted)
+  if (!e) return null
+  const src = e.archive === 0x7fff ? dirVpk : dirVpk.replace(/_dir\.vpk$/i, `_${String(e.archive).padStart(3, '0')}.vpk`)
+  const fh = await open(src, 'r')
+  try {
+    const b = Buffer.alloc(e.length)
+    await fh.read(b, 0, e.length, e.archive === 0x7fff ? dataStart + e.offset : e.offset)
+    return Buffer.concat([e.preload, b])
+  } finally { await fh.close() }
 }

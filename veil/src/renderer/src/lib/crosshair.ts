@@ -42,7 +42,19 @@ export const make = (name: string, p: Patch): XSpec => {
 
 const off = { on: false }
 
-export const LIBRARY: { group: string; items: XSpec[] }[] = [
+export const LIBRARY: { group: string; note?: string; items: XSpec[] }[] = [
+  {
+    group: 'Pro styles',
+    note: 'Shapes after settings these players have published (CS2: csdb.gg, Overwatch: gamersdecide.com). Pros change them often, and colour is yours to pick.',
+    items: [
+      make('NiKo style', { color: '#00ff00', lines: { length: 4, thickness: 1.5, gap: 0 }, outline: { width: 1, opacity: 1 } }),
+      make('m0NESY style', { color: '#00ffff', lines: { length: 4, thickness: 1, gap: 1 }, dot: { on: true, size: 1, shape: 'square' }, outline: { width: 1, opacity: 1 } }),
+      make('ZywOo style', { color: '#00ffff', lines: { length: 4, thickness: 1, gap: 1 }, outline: { width: 1, opacity: 1 } }),
+      make('FunnyAstro style', { color: '#00ff00', lines: { length: 5, thickness: 1, gap: 10 }, outline: off }),
+      make('OW compact', { color: '#ff00ff', opacity: 0.85, lines: { length: 5, thickness: 2, gap: 8 }, outline: { width: 1, opacity: 1 } }),
+      make('OW bullseye', { color: '#00ff00', lines: off, dot: { on: true, size: 4 }, outline: { width: 1, opacity: 1 } }),
+    ],
+  },
   {
     group: 'Competitive',
     items: [

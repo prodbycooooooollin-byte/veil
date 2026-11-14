@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { RotateCcw, Copy } from 'lucide-react'
+import { RotateCcw, Copy } from '../components/icons'
 import { ForgeScene, DamageNumbers, BAR_W, BAR_H, type Tab } from '../forge/Scene'
 import { Sim } from '../forge/sim'
 import { STYLES, drawBar } from '../lib/hpbar'

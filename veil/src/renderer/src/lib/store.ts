@@ -5,7 +5,8 @@ import { CVARS } from '../data/cvars'
 import { ALL as XH_ALL, toCvars, type XSpec } from './crosshair'
 import type { GameStatus } from './api'
 
-export type Page = 'lobby' | 'mods' | 'forge' | 'crosshair' | 'sound' | 'console' | 'install'
+export type Page = 'lobby' | 'mods' | 'forge' | 'crosshair' | 'sound' | 'console' | 'install' | 'settings'
+export type Prefs = { startPage: 'home' | 'last'; background: boolean; reduceMotion: boolean }
 
 export type BarStyle = 'flat' | 'ticks' | 'slim' | 'bold' | 'block' | 'outline' | 'classic' | 'neon' | 'minimal'
 export type Bar = {
@@ -41,6 +42,8 @@ type State = {
   side: 'enemy' | 'ally'
   hero: string | null
   custom: Record<string, string>
+  installed: string[]
+  prefs: Prefs
   status: GameStatus | null
   toast: { text: string; tone: 'ok' | 'bad' } | null
   set: (p: Partial<State>) => void
@@ -60,7 +63,7 @@ export const DEFAULT_BAR: Bar = {
 }
 export const DEFAULT_CROSS: Crosshair = { r: 255, g: 255, b: 255, gap: 4, width: 2, height: 16, opacity: 0.5, outline: 0.7, dot: 4, dotOpacity: 0.7, heroReticles: true, hitMarker: 0.1 }
 
-const defaultsOn = Object.fromEntries(MODS.filter((m) => m.locked || ['particles', 'soundcap', 'fps', 'reflex'].includes(m.id)).map((m) => [m.id, true]))
+const defaultsOn = Object.fromEntries(['veilhud', 'fps', 'reflex', 'fog', 'particledetail'].map((id) => [id, true]))
 const defaultsOpt: Record<string, string> = { hudpp: 'hidden', gameinfo: 'fov-complock', particles: 'stock', reflex: 'on', renderscale: '100' }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -82,6 +85,8 @@ export const useStore = create<State>()(
       side: 'enemy',
       hero: null,
       custom: {},
+      installed: [],
+      prefs: { startPage: 'home', background: true, reduceMotion: false },
       status: null,
       toast: null,
       set: (p) => set(p),
@@ -104,9 +109,10 @@ export const useStore = create<State>()(
     }),
     {
       name: 'veil',
-      partialize: ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom }) => ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom }),
-      version: 3,
-      migrate: (old: any) => ({ ...old, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),
+      partialize: ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }) => ({ page, on, opt, bar, cross, xh, xhSaved, xhMode, damageMode, showHealthValue, verticalBars, side, hero, custom, prefs }),
+      onRehydrateStorage: () => (st) => { if (st && st.prefs?.startPage !== 'last') st.page = 'lobby' },
+      version: 4,
+      migrate: (old: any) => ({ ...old, on: { ...(old?.on ?? {}), veilhud: true, hudpp: false, gameinfo: false }, page: 'lobby', bar: { ...DEFAULT_BAR, ...(old?.bar ?? {}) }, xh: old?.xh ? { ...old.xh, lines: { lengthV: null, ...old.xh.lines } } : old?.xh }),
     },
   ),
 )
@@ -115,7 +121,10 @@ const CFG_ONLY = new Set(CVARS.filter((v) => v.via === 'cfg').map((v) => v.name)
 const fmtNum =(n: number) => String(Math.round(n * 1000) / 1000)
 
 /** Everything the current choices add up to: what gets written, and the estimated gain of the measured parts. */
-export function computePack(s: Pick<State, 'on' | 'opt' | 'cross' | 'xh' | 'bar' | 'damageMode' | 'verticalBars' | 'custom'>) {
+/** Whether an external (CompLock) mod's pak is actually in the game, from the last scan. */
+export const isInstalled = (m: { match?: string }, installed: string[]) => !!m.match && installed.some((n) => n.toLowerCase().includes(m.match!.toLowerCase()))
+
+export function computePack(s: Pick<State, 'on' | 'opt' | 'cross' | 'xh' | 'bar' | 'damageMode' | 'verticalBars' | 'custom'> & { installed?: string[] }) {
   const convars: Record<string, string> = {}
   const autoexec: Record<string, string> = {}
   let avg = 1, low = 1
@@ -123,8 +132,10 @@ export function computePack(s: Pick<State, 'on' | 'opt' | 'cross' | 'xh' | 'bar'
   for (const m of MODS) {
     if (!s.on[m.id]) continue
     const o = m.options?.find((x) => x.id === s.opt[m.id]) ?? m.options?.[0]
-    const g = o?.gain ?? m.gain
-    if (m.id === 'hudpp') {
+    // measured gains only count for external paks that are really installed
+    const live = m.source !== 'complock' || isInstalled(m, s.installed ?? [])
+    const g = live ? (o?.gain ?? m.gain) : undefined
+    if (m.id === 'hudpp' && live) {
       // HUD++ itself, plus the measured effect of the chosen damage number mode
       avg *= 1 + (m.gain!.avg / 100); low *= 1 + (m.gain!.low / 100)
       if (o?.gain) { avg *= 1 + o.gain.avg / 100; low *= 1 + o.gain.low / 100 }
